@@ -84,13 +84,13 @@ export default function ResultPage() {
 
       // 2 – upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("images")
+        .from("submitted-images")
         .upload(filteredFile.name, filteredFile);
       if (uploadError) throw uploadError;
 
       // 3 – insert row in DB
       const timestamp = created_at ?? new Date().toISOString();
-      const { error: insertError } = await supabase.from("submissions").insert([
+      const { error: insertError } = await supabase.from("image_submissions").insert([
         {
           image_url: uploadData.path,
           comfort_level,

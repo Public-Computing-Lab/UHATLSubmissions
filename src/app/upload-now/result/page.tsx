@@ -99,12 +99,12 @@ export default function ResultPage() {
     try {
       const filteredFile = await drawFilteredImage();
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("images")
+        .from("submitted-images")
         .upload(filteredFile.name, filteredFile);
 
       if (uploadError) throw uploadError;
 
-      const { error: insertError } = await supabase.from("submissions").insert([
+      const { error: insertError } = await supabase.from("image_submissions").insert([
         {
           image_url: uploadData.path,
           comfort_level,

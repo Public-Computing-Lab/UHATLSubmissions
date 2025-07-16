@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSubmission } from "@/app/context/SubmissionContext";
+import { useEffect } from "react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const MapComponent = dynamic(
@@ -32,6 +34,12 @@ export default function HomePage() {
     photoMarkers: true,
     boundaries: false,
   });
+
+  const { resetContext } = useSubmission();
+
+  useEffect(() => {
+    resetContext(); // 👈 Clears context on landing
+  }, []);
 
   const toggleOverlay = (type: OverlayType) => {
     setActiveOverlay(activeOverlay === type ? null : type);
