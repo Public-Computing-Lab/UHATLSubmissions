@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { MapComponentProps, MapMarker, MapPosition, DEFAULT_MAP_CONFIG } from '@/types/map'
+import { MapComponentProps, MapMarker, MapPosition, DEFAULT_MAP_CONFIG } from '@/components/Map/types/map'
 import { clsx } from 'clsx'
 
 // Fix for default markers not showing
