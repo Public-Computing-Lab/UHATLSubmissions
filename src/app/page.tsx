@@ -26,6 +26,7 @@ type OverlayType = 'picture' | 'sensor' | 'layers' | null;
 
 export default function HomePage() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayType>(null);
+  const [showInitialOverlay, setShowInitialOverlay] = useState(true);
   const [layerStates, setLayerStates] = useState({
     satellite: false,
     heatMap: true,
@@ -43,6 +44,14 @@ export default function HomePage() {
 
   const toggleOverlay = (type: OverlayType) => {
     setActiveOverlay(activeOverlay === type ? null : type);
+  };
+
+  const handleInitialButtonClick = (type: OverlayType) => {
+    setShowInitialOverlay(false);
+    if (type === 'picture' || type === 'sensor') {
+      setActiveOverlay(type);
+    }
+    // For 'View Map', we just close the overlay without opening a side panel
   };
 
   const handleLayerChange = (layerKey: string) => {
@@ -188,44 +197,86 @@ export default function HomePage() {
     <main className="relative w-full h-screen font-mono">
       <MapComponent />
       
-      {/* Floating action buttons */}
-      <div className="absolute bottom-6 right-6 z-[1000] flex flex-col space-y-3">
-        {/* Add Picture Button */}
-        <button
-          onClick={() => toggleOverlay('picture')}
-          className={`bg-purple-300 hover:bg-purple-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-2 ${
-            activeOverlay === 'picture' ? 'bg-purple-400' : ''
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </button>
+      {/* Initial Overlay with Three Buttons */}
+      {showInitialOverlay && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[3000] flex items-center justify-center">
+          <div className="flex flex-col space-y-6 max-w-sm w-full mx-4">
+            {/* Upload Images Button */}
+            <button
+              onClick={() => handleInitialButtonClick('picture')}
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+            >
+              <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xl">Upload Images</span>
+            </button>
 
-        {/* Add Sensor Data Button */}
-        <button
-          onClick={() => toggleOverlay('sensor')}
-          className={`bg-green-300 hover:bg-green-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 ${
-            activeOverlay === 'sensor' ? 'bg-green-400' : ''
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </button>
+            {/* Upload Sensor Data Button */}
+            <button
+              onClick={() => handleInitialButtonClick('sensor')}
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+            >
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="text-xl">Upload Sensor Data</span>
+            </button>
 
-        {/* Layers Button */}
-        <button
-          onClick={() => toggleOverlay('layers')}
-          className={`bg-blue-300 hover:bg-blue-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 ${
-            activeOverlay === 'layers' ? 'bg-blue-400' : ''
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
+            {/* View Map Button */}
+            <button
+              onClick={() => handleInitialButtonClick(null)}
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+            >
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span className="text-xl">View Map</span>
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Floating action buttons (only visible when initial overlay is hidden) */}
+      {!showInitialOverlay && (
+        <div className="absolute bottom-6 right-6 z-[1000] flex flex-col space-y-3">
+          {/* Add Picture Button */}
+          <button
+            onClick={() => toggleOverlay('picture')}
+            className={`bg-purple-300 hover:bg-purple-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-2 ${
+              activeOverlay === 'picture' ? 'bg-purple-400' : ''
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+
+          {/* Add Sensor Data Button */}
+          <button
+            onClick={() => toggleOverlay('sensor')}
+            className={`bg-green-300 hover:bg-green-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 ${
+              activeOverlay === 'sensor' ? 'bg-green-400' : ''
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+
+          {/* Layers Button */}
+          <button
+            onClick={() => toggleOverlay('layers')}
+            className={`bg-blue-300 hover:bg-blue-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 ${
+              activeOverlay === 'layers' ? 'bg-blue-400' : ''
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Overlay Panel */}
       {activeOverlay && (

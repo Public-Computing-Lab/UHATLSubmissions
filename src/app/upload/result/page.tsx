@@ -94,7 +94,7 @@ export default function ResultPage() {
         {
           image_url: uploadData.path,
           comfort_level,
-          image_importance,
+          comment: image_importance,
           lat,
           long,
           created_at: timestamp,

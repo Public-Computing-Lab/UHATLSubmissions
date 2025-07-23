@@ -119,8 +119,8 @@ export default function VisualizePage() {
     const { error } = await supabase
       .from("csv_submissions")
       .update({
-        route_meaning: routeMeaning,
-        markers, // JSON array
+        significance: routeMeaning,
+        notes: markers, // JSON array
       })
       .eq("id", submissionId); // Use the existing submission ID
 

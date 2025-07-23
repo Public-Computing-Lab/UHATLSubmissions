@@ -92,10 +92,11 @@ export default function Page() {
         .insert({
           name,
           email,
-          area_of_interest: location,
-          mode_of_transport: finalTransport,
+          neighborhood: location,
+          transport: finalTransport,
           created_at: timestamp,
           csv_url: uploadData.path,
+          has_csv: "TRUE"
         })
         .select("id")
         .single();
@@ -130,10 +131,13 @@ export default function Page() {
         .from("csv_submissions")
         .update({
           num_records: processResult.numRecords,
-          missing_lat_lng: processResult.missingLatLng,
-          missing_internal_temp: processResult.missingInternalTemp,
-          missing_probe_temp: processResult.missingProbeTemp,
-          total_minutes: processResult.totalMinutes,
+          has_lat_lng: processResult.hasLatLng,
+          has_internal_temp: processResult.hasInternalTemp,
+          has_probe_temp: processResult.hasProbeTemp,
+          time_taken: processResult.totalMinutes,
+          complete: processResult.complete,
+          start_time: processResult.startTime,
+          stop_time: processResult.endTime,
         })
         .eq("id", submissionId);
 
@@ -220,7 +224,7 @@ export default function Page() {
 
           <fieldset className="space-y-3 font-mono">
             <legend className="text-sm leading-snug">What mode of transport did you use?</legend>
-            {["Walking", "Cycling", "Other"].map((opt) => (
+            {["Walking", "Cycling", "Driving", "Other"].map((opt) => (
               <div key={opt}>
                 <label className="flex items-center gap-3 cursor-pointer text-sm">
                   <input

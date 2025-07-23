@@ -8,11 +8,7 @@ export default function Page() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [comfortLevel, setComfortLevel] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [selectedHour, setSelectedHour] = useState<number>(12);
-  const [selectedMinute, setSelectedMinute] = useState<number>(0);
-  const [isAM, setIsAM] = useState<boolean>(true);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDateTime, setSelectedDateTime] = useState<string>("");
   const [map, setMap] = useState<any>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<any>(null);   
@@ -25,13 +21,14 @@ export default function Page() {
     setCreatedAt,
   } = useSubmission();
 
-  // Set current date as default and initialize map
+  // Set current datetime as default and initialize map
   useEffect(() => {
     const now = new Date();
-    setSelectedDate(now.toISOString().split('T')[0]);
-    setSelectedHour(now.getHours() > 12 ? now.getHours() - 12 : now.getHours() || 12);
-    setSelectedMinute(Math.round(now.getMinutes() / 30) * 30);
-    setIsAM(now.getHours() < 12);
+    // Format for datetime-local input (YYYY-MM-DDTHH:MM)
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    setSelectedDateTime(localDateTime);
 
     // Initialize Leaflet map
     const script = document.createElement('script');
@@ -61,7 +58,7 @@ export default function Page() {
             // Create first (and only) marker
             markerRef.current = (window as any).L.marker([lat, lng]).addTo(leafletMap);
           }
-          });
+        });
 
         setMap(leafletMap);
       }
@@ -93,37 +90,11 @@ export default function Page() {
     setImage(null);
   };
 
-  const handleLocationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Removed - no longer needed
-  };
-
-  const handleLocationMethodChange = (method: "current" | "manual") => {
-    // Removed - no longer needed
-  };
-
-  const formatDateTime = () => {
-    if (!selectedDate) return null;
-    
-    let hour24 = selectedHour;
-    if (!isAM && selectedHour !== 12) {
-      hour24 += 12;
-    } else if (isAM && selectedHour === 12) {
-      hour24 = 0;
-    }
-    
-    const dateTime = new Date(selectedDate);
-    dateTime.setHours(hour24, selectedMinute, 0, 0);
-    return dateTime.toISOString();
-  };
-
   const handleNextClick = () => {
-    if (imagePreview && comfortLevel && selectedLocation && selectedDate) {
-      // Set the datetime in context
-      const formattedDateTime = formatDateTime();
-      
-      if (formattedDateTime) {
-        setCreatedAt(formattedDateTime);
-      }
+    if (imagePreview && comfortLevel && selectedLocation && selectedDateTime) {
+      // Convert datetime-local input to ISO string
+      const dateTime = new Date(selectedDateTime);
+      setCreatedAt(dateTime.toISOString());
       
       // Set location coordinates
       setLocationCoords(selectedLocation.lat, selectedLocation.lng);
@@ -132,43 +103,7 @@ export default function Page() {
     }
   };
 
-  const isFormComplete = imagePreview && comfortLevel && selectedLocation && selectedDate;
-
-  // Generate calendar days for current month
-  const generateCalendarDays = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
-    const days = [];
-    const currentDate = new Date(startDate);
-    
-    for (let i = 0; i < 42; i++) {
-      days.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return days;
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  const formatDisplayDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
-  };
-
-  const formatDisplayTime = () => {
-    const displayHour = selectedHour === 0 ? 12 : selectedHour;
-    return `${displayHour}:${String(selectedMinute).padStart(2, '0')} ${isAM ? 'AM' : 'PM'}`;
-  };
+  const isFormComplete = imagePreview && comfortLevel && selectedLocation && selectedDateTime;
 
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -261,110 +196,16 @@ export default function Page() {
         {/* Date and Time Section */}
         <div className="w-full font-[family-name:var(--font-geist-mono)]">
           <p className="mb-4 text-sm">When was this image taken?</p>
-
-          {/* Date and Time Controls */}
-          <div className="space-y-4">
-            {/* Date Picker */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDatePicker(!showDatePicker)}
-                className="w-full p-2 bg-white border border-stone-300 rounded text-stone-900 text-sm text-left hover:bg-stone-50 transition"
-              >
-                {selectedDate ? formatDisplayDate(selectedDate) : 'Select date'}
-              </button>
-                
-                {showDatePicker && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-stone-300 rounded shadow-lg p-4 z-10 w-64">
-                    <div className="text-center font-medium mb-2 text-stone-900">
-                      {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-xs">
-                      {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                        <div key={day} className="text-center p-1 font-medium text-stone-600">{day}</div>
-                      ))}
-                      {generateCalendarDays().map((date, index) => {
-                        const dateString = formatDate(date);
-                        const isCurrentMonth = date.getMonth() === new Date().getMonth();
-                        const isSelected = selectedDate === dateString;
-                        const isToday = formatDate(new Date()) === dateString;
-                        
-                        return (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDate(dateString);
-                              setShowDatePicker(false);
-                            }}
-                            className={`p-1 text-center rounded text-xs ${
-                              !isCurrentMonth ? 'text-stone-400' :
-                              isSelected ? 'bg-amber-500 text-white' :
-                              isToday ? 'bg-amber-100 text-amber-800' :
-                              'hover:bg-stone-100 text-stone-900'
-                            }`}
-                          >
-                            {date.getDate()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Time Display */}
-              <div className="text-center text-lg font-[family-name:var(--font-geist-mono)] bg-stone-50 p-3 rounded border border-stone-200">
-                {formatDisplayTime()}
-              </div>
-
-              {/* Hour Slider */}
-              <div className="space-y-2">
-                <label className="text-sm text-stone-700">Hour: {selectedHour}</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="12"
-                  value={selectedHour}
-                  onChange={(e) => setSelectedHour(parseInt(e.target.value))}
-                  className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer slider"
-                />
-              </div>
-
-              {/* Minute Slider */}
-              <div className="space-y-2">
-                <label className="text-sm text-stone-700">Minute: {selectedMinute}</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="59"
-                  step="1"
-                  value={selectedMinute}
-                  onChange={(e) => setSelectedMinute(parseInt(e.target.value))}
-                  className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer slider"
-                />
-              </div>
-
-              {/* AM/PM Toggle */}
-              <div className="flex justify-center">
-                <div className="flex bg-stone-200 rounded p-1">
-                  <button
-                    type="button"
-                    onClick={() => setIsAM(true)}
-                    className={`px-4 py-2 rounded text-sm transition ${isAM ? 'bg-amber-500 text-white' : 'bg-transparent text-stone-700 hover:bg-stone-100'}`}
-                  >
-                    AM
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAM(false)}
-                    className={`px-4 py-2 rounded text-sm transition ${!isAM ? 'bg-amber-500 text-white' : 'bg-transparent text-stone-700 hover:bg-stone-100'}`}
-                  >
-                    PM
-                  </button>
-                </div>
-              </div>
-            </div>
+          
+          <div className="space-y-2">
+            <label className="block text-xs text-stone-700">Date and Time</label>
+            <input
+              type="datetime-local"
+              value={selectedDateTime}
+              onChange={(e) => setSelectedDateTime(e.target.value)}
+              className="w-full p-3 bg-white border border-stone-300 rounded text-stone-900 text-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+            />
+          </div>
         </div>
 
         {/* Next Button */}
@@ -382,26 +223,6 @@ export default function Page() {
           Next
         </button>
       </main>
-
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #f59e0b;
-          cursor: pointer;
-        }
-        
-        .slider::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #f59e0b;
-          cursor: pointer;
-          border: none;
-        }
-      `}</style>
     </div>
   );
 }
