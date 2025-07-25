@@ -77,7 +77,7 @@ export default function Page() {
     try {
       const timestamp = new Date().toISOString();
       const finalTransport = transport === "Other" ? customTransport : transport;
-      const filePath = `csv-${timestamp}`;
+      const filePath = `csv-${crypto.randomUUID()}`;
 
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
