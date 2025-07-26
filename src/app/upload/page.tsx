@@ -178,7 +178,7 @@ export default function Page() {
                 </svg>
               </div>
               <p className="mt-4 text-gray-700 font-medium">Choose Photo</p>
-              <p className="mt-1 text-xs text-gray-500">JPEG, PNG, GIF, WebP, SVG, BMP (max 10MB)</p>
+              {/* <p className="mt-1 text-xs text-gray-500">JPEG, PNG, GIF, WebP, SVG, BMP (max 10MB)</p> */}
               <input
                 id="file-upload"
                 type="file"

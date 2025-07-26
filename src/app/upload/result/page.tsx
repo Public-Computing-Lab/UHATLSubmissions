@@ -58,21 +58,40 @@ export default function ResultPage() {
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                resolve(
-                  new File([blob], `filtered-${Date.now()}.jpg`, {
-                    type: "image/jpeg",
-                  }),
-                );
-              } else {
-                reject(new Error("Failed to create image blob"));
-              }
-            },
-            "image/jpeg",
-            0.8,
-          );
+          // Compress with decreasing quality until under 10MB
+          const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+          let quality = 0.9;
+          const minQuality = 0.1;
+          const qualityStep = 0.1;
+
+          const tryCompression = () => {
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  console.log(`Compression attempt - Quality: ${quality}, Size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+                  
+                  if (blob.size > maxSizeBytes && quality > minQuality) {
+                    // File is still too large, reduce quality
+                    quality -= qualityStep;
+                    tryCompression();
+                  } else {
+                    // File is small enough or we've reached minimum quality
+                    resolve(
+                      new File([blob], `filtered-${Date.now()}.jpg`, {
+                        type: "image/jpeg",
+                      }),
+                    );
+                  }
+                } else {
+                  reject(new Error("Failed to create image blob"));
+                }
+              },
+              "image/jpeg",
+              quality,
+            );
+          };
+
+          tryCompression();
         } catch (error) {
           reject(new Error("Failed to process image: " + error));
         }
