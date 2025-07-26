@@ -42,7 +42,13 @@ export default function Page() {
 
   const handleFileSelect = (file: File) => {
     setError("");
-    if (file?.type === "text/csv" || file?.name.endsWith('.csv')) {
+    // More robust CSV file detection for Android compatibility
+    const isCSV = file?.type === "text/csv" || 
+                  file?.type === "application/vnd.ms-excel" || 
+                  file?.type === "text/plain" ||
+                  file?.name.toLowerCase().endsWith('.csv');
+    
+    if (isCSV) {
       setSelectedFile(file);
     } else {
       setError("Please select a valid CSV file");
@@ -384,7 +390,7 @@ export default function Page() {
               <input
                 id="file-input"
                 type="file"
-                accept=".csv"
+                accept=".csv,text/csv,application/vnd.ms-excel,text/plain"
                 className="hidden"
                 onChange={handleFileChange}
               />
