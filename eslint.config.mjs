@@ -28,6 +28,7 @@ const eslintConfig = [
       // React - allow common patterns
       "react/no-unescaped-entities": "off",
       "react-hooks/exhaustive-deps": "warn",
+      "react/react-in-jsx-scope": "off", // React 17+ doesn't need React import for JSX
       
       // Next.js - more flexible
       "@next/next/no-img-element": "warn",
