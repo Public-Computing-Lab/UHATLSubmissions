@@ -58,8 +58,8 @@ export default function ResultPage() {
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Compress with decreasing quality until under 10MB
-          const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+          // Compress with decreasing quality until under 5MB
+          const maxSizeBytes = 5 * 1024 * 1024; // 10MB
           let quality = 0.9;
           const minQuality = 0.1;
           const qualityStep = 0.1;
