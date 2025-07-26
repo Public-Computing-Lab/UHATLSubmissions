@@ -30,41 +30,54 @@ export default function ResultPage() {
   /** Draw the uploaded photo with its comfort-level gradient overlay
    *  and return it as a File suitable for upload. */
   const drawFilteredImage = async (): Promise<File> =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d")!;
       const img = new Image();
-
+      
+      // Handle CORS for external images
+      img.crossOrigin = "anonymous";
+      
       img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
+        try {
+          canvas.width = img.width;
+          canvas.height = img.height;
 
-        // Base photo
-        ctx.drawImage(img, 0, 0);
+          // Base photo
+          ctx.drawImage(img, 0, 0);
 
-        // Gradient overlay
-        const [start, end] =
-          gradientMap[comfort_level as keyof typeof gradientMap] ?? ["#000", "#fff"];
-        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, `${start}99`);
-        gradient.addColorStop(1, `${end}99`);
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // Gradient overlay
+          const [start, end] =
+            gradientMap[comfort_level as keyof typeof gradientMap] ?? ["#000", "#fff"];
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          gradient.addColorStop(0, `${start}99`);
+          gradient.addColorStop(1, `${end}99`);
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(
-                new File([blob], `filtered-${Date.now()}.jpg`, {
-                  type: "image/jpeg",
-                }),
-              );
-            }
-          },
-          "image/jpeg",
-          0.8,
-        );
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(
+                  new File([blob], `filtered-${Date.now()}.jpg`, {
+                    type: "image/jpeg",
+                  }),
+                );
+              } else {
+                reject(new Error("Failed to create image blob"));
+              }
+            },
+            "image/jpeg",
+            0.8,
+          );
+        } catch (error) {
+          reject(new Error("Failed to process image: " + error));
+        }
+      };
+      
+      img.onerror = () => {
+        reject(new Error("Failed to load image"));
       };
 
       img.src = image!;

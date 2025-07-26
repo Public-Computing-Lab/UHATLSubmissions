@@ -1,32 +1,75 @@
-'use client';
+"use client";
 
-import dynamic from 'next/dynamic';
-import { useState } from 'react';
-import Link from 'next/link';
+import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSubmission } from "@/app/context/SubmissionContext";
-import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import "leaflet/dist/leaflet.css";
+import type { Map as LeafletMap } from "leaflet";
+import { useMap } from "react-leaflet";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
-const MapComponent = dynamic(
-  () => import('@/components/Map/MapComponent'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-screen flex items-center justify-center bg-gray-100 font-mono">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-300 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading map...</p>
-        </div>
-      </div>
-    )
-  }
-);
+const MapContainer = dynamic(() => import("react-leaflet").then(m => m.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then(m => m.TileLayer), { ssr: false });
+const Marker = dynamic(() => import("react-leaflet").then(m => m.Marker), { ssr: false });
 
-type OverlayType = 'picture' | 'sensor' | 'layers' | null;
+function MapRefConnector({ setRef }: { setRef: (map: LeafletMap) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    setRef(map);
+  }, [map, setRef]);
+
+  return null;
+}
+
+type OverlayType = 'picture' | 'sensor' | 'layers' | 'mapStyle' | null;
+
+// Map style options
+const mapStyles = {
+  minimal: {
+    name: "Minimal",
+    url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; OpenStreetMap, &copy; CARTO"
+  },
+  clean: {
+    name: "Clean",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; OpenStreetMap, &copy; CARTO"
+  },
+  dark: {
+    name: "Dark",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "&copy; OpenStreetMap, &copy; CARTO"
+  },
+  standard: {
+    name: "Standard",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    attribution: "&copy; OpenStreetMap contributors"
+  },
+  satellite: {
+    name: "Satellite",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri"
+  }
+} as const;
+
+interface ImageSubmission {
+  id: string;
+  image_url: string;
+  comfort_level: string;
+  comment: string;
+  lat: number;
+  long: number;
+  created_at: string;
+  signedImageUrl?: string;
+}
 
 export default function HomePage() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayType>(null);
   const [showInitialOverlay, setShowInitialOverlay] = useState(true);
+  const [mapStyle, setMapStyle] = useState<keyof typeof mapStyles>("clean");
   const [layerStates, setLayerStates] = useState({
     satellite: false,
     heatMap: true,
@@ -35,12 +78,36 @@ export default function HomePage() {
     photoMarkers: true,
     boundaries: false,
   });
+  const [imageSubmissions, setImageSubmissions] = useState<ImageSubmission[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<ImageSubmission | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [colorIcons, setColorIcons] = useState<{ [key: string]: any }>({});
+  const [imageCache, setImageCache] = useState<{ [key: string]: string }>({});
+  const [imageLoadError, setImageLoadError] = useState<string | null>(null);
 
   const { resetContext } = useSubmission();
+  const mapRef = useRef<LeafletMap | null>(null);
+
+  // Gradient map for comfort levels
+  const gradientMap: Record<string, [string, string]> = {
+    Freezing: ["#8CB9F1", "#CFE8FF"],
+    Chilly: ["#0074B7", "#88D6F0"],
+    Comfortable: ["#21A348", "#9FEFAF"],
+    Warm: ["#FFD500", "#FFF3B0"],
+    Hot: ["#E27100", "#FFB74D"],
+    Sweltering: ["#6C1D45", "#FF4B4B"],
+  };
 
   useEffect(() => {
-    resetContext(); // 👈 Clears context on landing
+    resetContext();
+    fetchImageSubmissions();
   }, []);
+
+  useEffect(() => {
+    if (imageSubmissions.length > 0 && !showInitialOverlay) {
+      createColorIcons();
+    }
+  }, [imageSubmissions, showInitialOverlay]);
 
   const toggleOverlay = (type: OverlayType) => {
     setActiveOverlay(activeOverlay === type ? null : type);
@@ -51,7 +118,6 @@ export default function HomePage() {
     if (type === 'picture' || type === 'sensor') {
       setActiveOverlay(type);
     }
-    // For 'View Map', we just close the overlay without opening a side panel
   };
 
   const handleLayerChange = (layerKey: string) => {
@@ -65,91 +131,100 @@ export default function HomePage() {
     switch (activeOverlay) {
       case 'picture':
         return (
-          <div className="p-6 bg-gradient-to-b from-purple-200 to-pink-200 text-gray-800 min-h-full font-mono">
-            <h2 className="text-2xl font-bold mb-6">Calling all Citizen Scientists!</h2>
-            
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Before Taking Your Photo:</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Enable location data</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Display "internal temperature" and "temperature probe" charts</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Collect data at 1pt/sec</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Connect the temperature probe to the blue sensor</span>
-                </li>
-              </ul>
+          <div className="h-full bg-gradient-to-b from-purple-50 to-pink-50 flex flex-col">
+            {/* Fixed Header */}
+            <div className="p-4 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Upload Images</h2>
+                <button
+                  onClick={() => setActiveOverlay(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">On Your Walk:</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Avoid direct sunlight on the temperature probe</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Hold the temperature probe away from your body</span>
-                </li>
-              </ul>
-            </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Instructions:</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="mr-2 text-purple-500">•</span>
+                    <span>Enable location services on your device</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-purple-500">•</span>
+                    <span>Take photos in different temperature conditions</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-purple-500">•</span>
+                    <span>Add context about how the temperature feels</span>
+                  </li>
+                </ul>
+              </div>
 
-            <div className="mb-6">
-              <p className="text-sm underline cursor-pointer hover:text-purple-600 transition-colors">
-                Full Walk Instructions &gt;
-              </p>
+              <div className="space-y-3">
+                <Link
+                  href="/upload-now"
+                  className="block w-full text-center bg-purple-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-purple-700 transition-colors duration-200 shadow-lg"
+                >
+                  Take Photo Now
+                </Link>
+                <Link
+                  href="/upload"
+                  className="block w-full text-center bg-white border-2 border-purple-600 text-purple-600 font-semibold py-4 px-4 rounded-xl hover:bg-purple-50 transition-colors duration-200"
+                >
+                  Upload Existing Photo
+                </Link>
+              </div>
             </div>
-
-            <div className="space-y-3">
-              <Link
-                href="/upload-now"
-                className="block w-full text-center bg-transparent border-2 border-gray-600 text-gray-800 font-semibold py-3 px-4 rounded-lg hover:bg-white hover:bg-opacity-50 transition-colors duration-200"
-              >
-                Take Photo Now
-              </Link>
-              <Link
-                href="/upload"
-                className="block w-full text-center bg-transparent border-2 border-gray-600 text-gray-800 font-semibold py-3 px-4 rounded-lg hover:bg-white hover:bg-opacity-50 transition-colors duration-200"
-              >
-                Upload a Photo
-              </Link>
-            </div>
-
           </div>
         );
       case 'sensor':
         return (
-          <div className="p-6 bg-gradient-to-b from-green-200 to-teal-200 text-gray-800 min-h-full font-mono">
-            <h2 className="text-2xl font-bold mb-6">Upload Sensor Data</h2>
-
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Data Requirements:</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Supported formats: CSV</span>
-                </li>
-              </ul>
+          <div className="h-full bg-gradient-to-b from-green-50 to-teal-50 flex flex-col">
+            {/* Fixed Header */}
+            <div className="p-4 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Upload Sensor Data</h2>
+                <button
+                  onClick={() => setActiveOverlay(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Temperature Data from PocketLab</h3>
-            </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Data Requirements:</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>CSV format from PocketLab sensors</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>Include GPS coordinates and temperature data</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>Ensure data quality with proper probe handling</span>
+                  </li>
+                </ul>
+              </div>
 
-            <div className="space-y-3">
               <Link
                 href="/upload-csv"
-                className="w-full bg-white text-teal-600 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 shadow-sm">
+                className="block w-full text-center bg-green-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-green-700 transition-colors duration-200 shadow-lg">
                 Upload CSV File
               </Link>
             </div>
@@ -157,34 +232,94 @@ export default function HomePage() {
         );
       case 'layers':
         return (
-          <div className="p-6 bg-gradient-to-b from-blue-200 to-indigo-200 text-gray-800 min-h-full font-mono">
-            <h2 className="text-2xl font-bold mb-6">Map Layers</h2>
-            <div className="space-y-4">
-              {[
-                { key: 'satellite', name: 'Temperature Records' },
-                { key: 'heatMap', name: 'Images' },
-                { key: 'traffic', name: 'Annotations' },
-                { key: 'sensorPoints', name: 'Satellite BaseMap' },
-                { key: 'photoMarkers', name: 'Light Base Map' },
-                { key: 'boundaries', name: 'Dark Base Map' },
-              ].map((layer) => (
-                <div key={layer.key} className="flex items-center p-3 bg-white bg-opacity-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id={layer.key}
-                    checked={layerStates[layer.key as keyof typeof layerStates]}
-                    onChange={() => handleLayerChange(layer.key)}
-                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor={layer.key} className="text-gray-800 cursor-pointer flex-1">
-                    {layer.name}
-                  </label>
-                </div>
-              ))}
+          <div className="h-full bg-gradient-to-b from-blue-50 to-indigo-50 flex flex-col">
+            {/* Fixed Header */}
+            <div className="p-4 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Map Layers</h2>
+                <button
+                  onClick={() => setActiveOverlay(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
-              <button className="w-full bg-white text-blue-600 font-semibold py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors duration-200 shadow-sm mt-6">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {[
+                  { key: 'satellite', name: 'Temperature Records', icon: '🌡️' },
+                  { key: 'heatMap', name: 'Heat Map', icon: '🔥' },
+                  { key: 'traffic', name: 'Traffic Data', icon: '🚦' },
+                  { key: 'sensorPoints', name: 'Sensor Points', icon: '📍' },
+                  { key: 'photoMarkers', name: 'Photo Locations', icon: '📸' },
+                  { key: 'boundaries', name: 'District Boundaries', icon: '🗺️' },
+                ].map((layer) => (
+                  <label key={layer.key} className="flex items-center p-4 bg-white rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      id={layer.key}
+                      checked={layerStates[layer.key as keyof typeof layerStates]}
+                      onChange={() => handleLayerChange(layer.key)}
+                      className="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="mr-3 text-xl">{layer.icon}</span>
+                    <span className="text-gray-800 font-medium flex-1">{layer.name}</span>
+                  </label>
+                ))}
+              </div>
+
+              <button className="w-full bg-blue-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-lg mt-6">
                 Apply Changes
               </button>
+            </div>
+          </div>
+        );
+      case 'mapStyle':
+        return (
+          <div className="h-full bg-gradient-to-b from-gray-50 to-slate-50 flex flex-col">
+            {/* Fixed Header */}
+            <div className="p-4 bg-white shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Map Style</h2>
+                <button
+                  onClick={() => setActiveOverlay(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(mapStyles).map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setMapStyle(key as keyof typeof mapStyles);
+                      setActiveOverlay(null);
+                    }}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      mapStyle === key 
+                        ? "border-gray-800 bg-gray-100" 
+                        : "border-gray-200 bg-white hover:border-gray-400"
+                    }`}
+                  >
+                    <div className="text-lg font-medium">{style.name}</div>
+                    {mapStyle === key && (
+                      <div className="text-xs text-green-600 mt-1">Active</div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -193,58 +328,207 @@ export default function HomePage() {
     }
   };
 
+  // Fetch image submissions from database
+  const fetchImageSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("image_submissions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      setImageSubmissions(data || []);
+    } catch (err) {
+      console.error("Error fetching image submissions:", err);
+    }
+  };
+
+  // Create colored icons for markers
+  const createColorIcons = async () => {
+    if (typeof window === "undefined") return;
+    
+    const L = await import("leaflet");
+    const icons: { [key: string]: any } = {};
+    
+    const comfortLevels = Object.keys(gradientMap);
+    
+    for (const level of comfortLevels) {
+      const color = gradientMap[level][0];
+      const isMobile = window.innerWidth < 768;
+      const markerSize = isMobile ? 24 : 20;
+      
+      const svgIcon = `
+        <svg width="${markerSize}" height="${markerSize}" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="${markerSize/2}" cy="${markerSize/2}" r="${markerSize/2 - 2}" 
+                  fill="${color}" stroke="white" stroke-width="2" 
+                  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.3))"/>
+        </svg>
+      `;
+      
+      const iconUrl = `data:image/svg+xml;base64,${btoa(svgIcon)}`;
+      
+      icons[level] = new L.Icon({
+        iconUrl: iconUrl,
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize/2, markerSize/2],
+        popupAnchor: [0, -markerSize/2],
+        className: 'custom-color-marker',
+      });
+    }
+    
+    setColorIcons(icons);
+  };
+
+  // Get signed URL for image
+  const getImageUrl = async (imagePath: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("submitted-images")
+        .createSignedUrl(imagePath, 3600);
+
+      if (error) {
+        console.error("Error creating signed URL:", error);
+        return "";
+      }
+
+      return data.signedUrl;
+    } catch (err) {
+      console.error("Error getting image URL:", err);
+      return "";
+    }
+  };
+
+  // Handle marker click
+  const handleMarkerClick = async (submission: ImageSubmission) => {
+    setImageLoadError(null);
+    setSelectedSubmission(submission);
+    
+    if (imageCache[submission.id]) {
+      submission.signedImageUrl = imageCache[submission.id];
+      return;
+    }
+    
+    setImageLoading(true);
+    try {
+      const signedUrl = await getImageUrl(submission.image_url);
+      if (signedUrl) {
+        submission.signedImageUrl = signedUrl;
+        setImageCache(prev => ({
+          ...prev,
+          [submission.id]: signedUrl
+        }));
+      } else {
+        setImageLoadError(`Could not load image: ${submission.image_url}`);
+      }
+    } catch (error) {
+      setImageLoadError(`Error loading image: ${error}`);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedSubmission(null);
+    setImageLoading(false);
+    setImageLoadError(null);
+  };
+
   return (
-    <main className="relative w-full h-screen font-mono">
-      <MapComponent />
+    <main className="relative w-full h-screen font-sans">
+      <MapContainer
+        center={[33.7756, -84.3963]}
+        zoom={12}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={true}
+      >
+        <TileLayer
+          attribution={mapStyles[mapStyle].attribution}
+          url={mapStyles[mapStyle].url}
+        />
+        
+        {/* Add markers for image submissions */}
+        {layerStates.photoMarkers && imageSubmissions.map((submission) => (
+          colorIcons[submission.comfort_level] && (
+            <Marker
+              key={submission.id}
+              position={[submission.lat, submission.long]}
+              icon={colorIcons[submission.comfort_level]}
+              eventHandlers={{
+                click: () => handleMarkerClick(submission),
+              }}
+            />
+          )
+        ))}
+        
+        <MapRefConnector setRef={(map) => { mapRef.current = map; }} />
+      </MapContainer>
       
       {/* Initial Overlay with Three Buttons */}
       {showInitialOverlay && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[3000] flex items-center justify-center">
-          <div className="flex flex-col space-y-6 max-w-sm w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[3000] flex items-center justify-center px-4">
+          <div className="flex flex-col space-y-4 max-w-sm w-full">
+            <h1 className="text-3xl font-bold text-white text-center mb-4">Urban Heat Atlanta</h1>
+            
             {/* Upload Images Button */}
             <button
               onClick={() => handleInitialButtonClick('picture')}
-              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-6 rounded-2xl shadow-xl transition-all duration-200 flex items-center space-x-4 transform hover:scale-105"
             >
-              <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="text-xl">Upload Images</span>
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="text-left flex-1">
+                <span className="text-lg block">Upload Images</span>
+                <span className="text-sm text-gray-500">Share your experience</span>
+              </div>
             </button>
 
             {/* Upload Sensor Data Button */}
             <button
               onClick={() => handleInitialButtonClick('sensor')}
-              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-6 rounded-2xl shadow-xl transition-all duration-200 flex items-center space-x-4 transform hover:scale-105"
             >
-              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <span className="text-xl">Upload Sensor Data</span>
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="text-left flex-1">
+                <span className="text-lg block">Upload Sensor Data</span>
+                <span className="text-sm text-gray-500">Temperature measurements</span>
+              </div>
             </button>
 
             {/* View Map Button */}
             <button
               onClick={() => handleInitialButtonClick(null)}
-              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-8 rounded-xl shadow-lg transition-colors duration-200 flex items-center space-x-4"
+              className="bg-white hover:bg-gray-50 text-gray-800 font-semibold py-6 px-6 rounded-2xl shadow-xl transition-all duration-200 flex items-center space-x-4 transform hover:scale-105"
             >
-              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              <span className="text-xl">View Map</span>
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              </div>
+              <div className="text-left flex-1">
+                <span className="text-lg block">View Map</span>
+                <span className="text-sm text-gray-500">Explore heat data</span>
+              </div>
             </button>
           </div>
         </div>
       )}
       
-      {/* Floating action buttons (only visible when initial overlay is hidden) */}
+      {/* Floating action buttons - Mobile Optimized */}
       {!showInitialOverlay && (
-        <div className="absolute bottom-6 right-6 z-[1000] flex flex-col space-y-3">
+        <div className="fixed bottom-6 right-4 z-[1000] flex flex-col space-y-3">
           {/* Add Picture Button */}
           <button
             onClick={() => toggleOverlay('picture')}
-            className={`bg-purple-300 hover:bg-purple-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-2 ${
-              activeOverlay === 'picture' ? 'bg-purple-400' : ''
+            className={`bg-purple-500 hover:bg-purple-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 ${
+              activeOverlay === 'picture' ? 'scale-110 shadow-xl' : ''
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -255,8 +539,8 @@ export default function HomePage() {
           {/* Add Sensor Data Button */}
           <button
             onClick={() => toggleOverlay('sensor')}
-            className={`bg-green-300 hover:bg-green-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2 ${
-              activeOverlay === 'sensor' ? 'bg-green-400' : ''
+            className={`bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 ${
+              activeOverlay === 'sensor' ? 'scale-110 shadow-xl' : ''
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,43 +551,154 @@ export default function HomePage() {
           {/* Layers Button */}
           <button
             onClick={() => toggleOverlay('layers')}
-            className={`bg-blue-300 hover:bg-blue-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 ${
-              activeOverlay === 'layers' ? 'bg-blue-400' : ''
+            className={`bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 ${
+              activeOverlay === 'layers' ? 'scale-110 shadow-xl' : ''
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+
+          {/* Map Style Button */}
+          <button
+            onClick={() => toggleOverlay('mapStyle')}
+            className={`bg-gray-600 hover:bg-gray-700 text-white rounded-full p-4 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 ${
+              activeOverlay === 'mapStyle' ? 'scale-110 shadow-xl' : ''
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {/* Overlay Panel */}
+      {/* Overlay Panel - Mobile Optimized */}
       {activeOverlay && (
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black bg-opacity-20 z-[1500] transition-opacity duration-300"
+            className="fixed inset-0 bg-black bg-opacity-40 z-[1500] transition-opacity duration-300 md:hidden"
             onClick={() => setActiveOverlay(null)}
           />
           
-          {/* Slide-in Panel */}
-          <div className="fixed right-0 top-0 h-full w-4/5 max-w-md bg-white shadow-xl z-[2000] transform transition-transform duration-300 ease-in-out overflow-y-auto">
-            {/* Close Button */}
-            <button
-              onClick={() => setActiveOverlay(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors duration-200 z-10"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            {/* Panel Content */}
+          {/* Slide-in Panel - Full screen on mobile */}
+          <div className="fixed inset-x-0 bottom-0 h-[85vh] md:inset-y-0 md:right-0 md:left-auto md:h-full md:w-96 bg-white shadow-2xl z-[2000] transform transition-transform duration-300 ease-out rounded-t-3xl md:rounded-none overflow-hidden">
             {renderOverlayContent()}
           </div>
         </>
       )}
+
+      {/* Modal for Selected Submission */}
+      {selectedSubmission && (
+        <div 
+          className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-3 z-[3000]"
+          onClick={closeModal}
+        >
+          <div 
+            className="relative w-full h-full max-w-4xl max-h-full overflow-hidden bg-black text-white rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Background Image or Loading State */}
+            {imageLoading ? (
+              <div className="absolute inset-0 w-full h-full bg-gray-800 flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <div>Loading image...</div>
+                </div>
+              </div>
+            ) : imageLoadError ? (
+              <div className="absolute inset-0 w-full h-full bg-gray-800 flex items-center justify-center">
+                <div className="text-white text-center p-4">
+                  <div className="text-red-400 mb-2">Failed to load image</div>
+                  <div className="text-xs opacity-70">{imageLoadError}</div>
+                </div>
+              </div>
+            ) : selectedSubmission.signedImageUrl ? (
+              <img
+                src={selectedSubmission.signedImageUrl}
+                alt="Submission"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setImageLoadError(`Image failed to load from URL`)}
+              />
+            ) : (
+              <div className="absolute inset-0 w-full h-full bg-gray-800 flex items-center justify-center">
+                <div className="text-white">Click to load image...</div>
+              </div>
+            )}
+
+            {/* Comfort Level Overlay */}
+            {!imageLoading && selectedSubmission.signedImageUrl && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: `linear-gradient(to bottom, ${gradientMap[selectedSubmission.comfort_level]?.[0]}, ${gradientMap[selectedSubmission.comfort_level]?.[1]})`,
+                  opacity: 0.8,
+                  mixBlendMode: "overlay",
+                }}
+              />
+            )}
+
+            {/* Content Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center px-4 py-20">
+              <div className="bg-stone-900/95 backdrop-blur-sm text-white rounded-2xl p-5 w-full max-w-md space-y-4 shadow-2xl max-h-96 overflow-y-auto border border-white/20">
+                <div>
+                  <strong className="text-base block mb-2 text-blue-300">Comments:</strong>
+                  <p className="text-sm leading-relaxed text-gray-100">{selectedSubmission.comment || "No comments provided"}</p>
+                </div>
+                <div className="border-t border-white/20 pt-3">
+                  <strong className="text-base block mb-1 text-green-300">Comfort Level:</strong>
+                  <div className="flex items-center space-x-2">
+                    <div
+                      className="w-4 h-4 rounded-full border border-white/50"
+                      style={{ backgroundColor: gradientMap[selectedSubmission.comfort_level]?.[0] }}
+                    />
+                    <span className="text-sm">{selectedSubmission.comfort_level}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Info */}
+            <div className="absolute bottom-20 left-0 right-0 flex justify-center px-4">
+              <div className="bg-white/95 text-black rounded-lg px-4 py-2 text-sm font-mono shadow-lg backdrop-blur-sm">
+                Location: {selectedSubmission.lat.toFixed(4)}, {selectedSubmission.long.toFixed(4)}
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={closeModal}
+              className="absolute top-4 right-4 bg-black/80 text-white rounded-full w-12 h-12 flex items-center justify-center hover:bg-black/90 transition-all text-xl border-2 border-white/20 shadow-lg"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add custom styles */}
+      <style jsx global>{`
+        .custom-color-marker {
+          cursor: pointer;
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        
+        .custom-color-marker:hover {
+          transform: scale(1.2);
+          filter: brightness(1.1);
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
     </main>
   );
 }

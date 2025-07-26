@@ -24,7 +24,7 @@ export default function VisualizePage() {
   const [coolCoords, setCoolCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const {
-    submissionId, // Get the submission ID from context
+    submissionId,
     name,
     email,
     area_of_interest,
@@ -36,20 +36,6 @@ export default function VisualizePage() {
     missingProbeTemp,
     totalMinutes,
   } = useSubmission();
-
-  console.log("Submission context:", {
-      submissionId, // Log the submission ID
-      name,
-      email,
-      area_of_interest,
-      mode_of_transport,
-      csv_url,
-      numRecords,
-      missingLatLng,
-      missingInternalTemp,
-      missingProbeTemp,
-      totalMinutes,
-    });
 
   useEffect(() => {
     if (map && L) {
@@ -115,14 +101,13 @@ export default function VisualizePage() {
       })),
     ];
 
-    // UPDATE the existing submission instead of creating a new one
     const { error } = await supabase
       .from("csv_submissions")
       .update({
         significance: routeMeaning,
-        notes: markers, // JSON array
+        notes: markers,
       })
-      .eq("id", submissionId); // Use the existing submission ID
+      .eq("id", submissionId);
 
     if (error) {
       console.error("Update error:", error);
@@ -139,17 +124,19 @@ export default function VisualizePage() {
     }
   };
 
-  // Add a check to ensure we have the submission ID
   if (!submissionId) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">No submission data found.</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg max-w-sm w-full">
+          <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-gray-800 mb-6 font-medium">No submission data found.</p>
           <button 
             onClick={() => window.location.href = '/'}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
           >
-            Go back to submit data
+            Go back to home
           </button>
         </div>
       </div>
@@ -160,37 +147,67 @@ export default function VisualizePage() {
     <div className="sensor-app">
       <div ref={mapRef} className="map-background" />
 
+      {/* Mobile-optimized Step Card */}
       {showCard && step <= 3 && (
-        <StepCard
-          step={step}
-          hotNote={hotNote}
-          setHotNote={setHotNote}
-          coolNote={coolNote}
-          setCoolNote={setCoolNote}
-          routeMeaning={routeMeaning}
-          setRouteMeaning={setRouteMeaning}
-          onFinish={() => setShowCard(false)}
-        />
+        <div className="fixed inset-x-0 bottom-0 z-[1000] transform transition-transform duration-300 ease-out">
+          <div className="bg-white rounded-t-3xl shadow-2xl">
+            {/* Handle bar */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+            </div>
+            
+            <div className="px-6 pb-6 pt-2">
+              <StepCard
+                step={step}
+                hotNote={hotNote}
+                setHotNote={setHotNote}
+                coolNote={coolNote}
+                setCoolNote={setCoolNote}
+                routeMeaning={routeMeaning}
+                setRouteMeaning={setRouteMeaning}
+                onFinish={() => setShowCard(false)}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
+      {/* Mobile-optimized floating buttons */}
       {!showCard && (
         <div className="interaction-overlay">
           {addingExtra && (
-            <div className="question-card extra">
-              <input
-                placeholder="Add Note"
-                className="note-input"
+            <div className="fixed inset-x-0 bottom-0 z-[1000] bg-white rounded-t-3xl shadow-2xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Add a Note</h3>
+              <textarea
+                placeholder="What would you like to note about this location?"
+                className="w-full p-4 border border-gray-300 rounded-xl resize-none text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                rows={3}
                 value={tempNote}
                 onChange={(e) => setTempNote(e.target.value)}
               />
-              <button className="submit-button">Click on map to place note</button>
+              <div className="flex gap-3 mt-4">
+                <button 
+                  onClick={() => setAddingExtra(false)}
+                  className="flex-1 py-3 px-4 bg-gray-200 text-gray-800 rounded-xl font-medium hover:bg-gray-300 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="flex-1 py-3 px-4 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition"
+                  disabled={!tempNote.trim()}
+                >
+                  Tap map to place
+                </button>
+              </div>
             </div>
           )}
-          <div className="absolute bottom-6 right-6 z-[1000] flex flex-col space-y-3">
+          
+          {/* Floating Action Buttons */}
+          <div className="fixed bottom-6 right-6 z-[1000] flex flex-col space-y-3">
             <button
               onClick={() => setAddingExtra(true)}
-              className="bg-purple-300 hover:bg-purple-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200
-                      focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-offset-2"
+              className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-4 shadow-lg transition-all duration-200
+                      focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:scale-110"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -199,8 +216,8 @@ export default function VisualizePage() {
 
             <button
               onClick={handleSubmit}
-              className="bg-green-300 hover:bg-green-400 text-gray-800 rounded-full p-3 shadow-lg transition-colors duration-200
-                      focus:outline-none focus:ring-2 focus:ring-green-300 focus:ring-offset-2"
+              className="bg-green-600 hover:bg-green-700 text-white rounded-full p-4 shadow-lg transition-all duration-200
+                      focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transform hover:scale-110"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

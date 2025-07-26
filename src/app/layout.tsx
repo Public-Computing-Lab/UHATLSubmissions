@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}
+        className={`${geistMono.variable} font-mono antialiased bg-white text-black`}
       >
         <SubmissionProvider>
           <main>
