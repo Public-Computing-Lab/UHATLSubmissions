@@ -39,6 +39,11 @@ const eslintConfig = [
       "no-debugger": "error",
       "no-unreachable": "error",
       "no-undef": "error",
+    },
+    languageOptions: {
+      globals: {
+        React: "readonly"
+      }
     }
   }
 ];
