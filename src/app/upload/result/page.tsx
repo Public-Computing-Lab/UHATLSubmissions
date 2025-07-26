@@ -16,6 +16,8 @@ export default function ResultPage() {
   } = useSubmission();
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   const gradientMap: Record<string, [string, string]> = {
@@ -34,10 +36,10 @@ export default function ResultPage() {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d")!;
       const img = new Image();
-      
+
       // Handle CORS for external images
       img.crossOrigin = "anonymous";
-      
+
       img.onload = () => {
         try {
           canvas.width = img.width;
@@ -75,7 +77,7 @@ export default function ResultPage() {
           reject(new Error("Failed to process image: " + error));
         }
       };
-      
+
       img.onerror = () => {
         reject(new Error("Failed to load image"));
       };
@@ -84,8 +86,12 @@ export default function ResultPage() {
     });
 
   const handleSubmit = async () => {
+    // Reset previous states
+    setError(null);
+    setSuccess(false);
+
     if (!image || !comfort_level || lat === null || long === null) {
-      alert("Missing image, comfort level, or location");
+      setError("Missing required information. Please ensure you've completed all steps.");
       return;
     }
 
@@ -99,7 +105,9 @@ export default function ResultPage() {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("submitted-images")
         .upload(filteredFile.name, filteredFile);
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
+      }
 
       // 3 – insert row in DB
       const timestamp = created_at ?? new Date().toISOString();
@@ -113,12 +121,18 @@ export default function ResultPage() {
           created_at: timestamp,
         },
       ]);
-      if (insertError) throw insertError;
+      if (insertError) {
+        throw new Error(`Failed to save submission: ${insertError.message}`);
+      }
 
-      router.push("/");
+      setSuccess(true);
+      // Redirect after a short delay to show success message
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Something went wrong during upload.");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -168,14 +182,41 @@ export default function ResultPage() {
         </div>
       )}
 
+      {/* Feedback Messages */}
+      {(error || success) && (
+        <div className="absolute top-4 left-0 right-0 flex justify-center px-4 z-50">
+          <div
+            className={`${
+              error ? "bg-red-600" : "bg-green-600"
+            } text-white rounded-lg px-6 py-3 shadow-lg max-w-md w-full text-center`}
+          >
+            {error ? (
+              <>
+                <p className="font-semibold">Submission Failed</p>
+                <p className="text-sm mt-1">{error}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Success!</p>
+                <p className="text-sm mt-1">Your submission has been saved. Redirecting...</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Submit button */}
       <div className="absolute bottom-6 left-0 right-0 flex justify-center px-4">
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="w-full max-w-md bg-white text-black rounded-md px-6 py-2 font-semibold shadow hover:bg-stone-600 transition font-[family-name:var(--font-geist-mono)]"
+          disabled={loading || success}
+          className={`w-full max-w-md rounded-md px-6 py-2 font-semibold shadow transition font-[family-name:var(--font-geist-mono)] ${
+            loading || success
+              ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+              : "bg-white text-black hover:bg-stone-600"
+          }`}
         >
-          {loading ? "Submitting…" : "Submit"}
+          {loading ? "Submitting…" : success ? "Submitted!" : "Submit"}
         </button>
       </div>
     </div>

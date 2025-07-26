@@ -18,6 +18,8 @@ export default function ResultPage() {
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   // Grab the user's current location once the component mounts
@@ -31,7 +33,7 @@ export default function ResultPage() {
       },
       (err) => {
         console.warn("Location error:", err);
-        alert("Unable to retrieve your location.");
+        setError("Unable to retrieve your location. Please check your location settings.");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -50,47 +52,64 @@ export default function ResultPage() {
   /** Draw the uploaded photo with its comfort-level gradient overlay,
    *  then return it as a File for upload. */
   const drawFilteredImage = async (): Promise<File> =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d")!;
       const img = new Image();
 
+      // Handle CORS for external images
+      img.crossOrigin = "anonymous";
+
       img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
+        try {
+          canvas.width = img.width;
+          canvas.height = img.height;
 
-        // Base photo
-        ctx.drawImage(img, 0, 0);
+          // Base photo
+          ctx.drawImage(img, 0, 0);
 
-        // Gradient overlay
-        const [start, end] =
-          gradientMap[comfort_level as keyof typeof gradientMap] ?? ["#000", "#fff"];
-        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, `${start}99`);
-        gradient.addColorStop(1, `${end}99`);
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // Gradient overlay
+          const [start, end] =
+            gradientMap[comfort_level as keyof typeof gradientMap] ?? ["#000", "#fff"];
+          const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          gradient.addColorStop(0, `${start}99`);
+          gradient.addColorStop(1, `${end}99`);
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(
-                new File([blob], `filtered-${Date.now()}.jpg`, { type: "image/jpeg" })
-              );
-            }
-          },
-          "image/jpeg",
-          0.8
-        );
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(
+                  new File([blob], `filtered-${Date.now()}.jpg`, { type: "image/jpeg" })
+                );
+              } else {
+                reject(new Error("Failed to create image blob"));
+              }
+            },
+            "image/jpeg",
+            0.8
+          );
+        } catch (error) {
+          reject(new Error("Failed to process image: " + error));
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error("Failed to load image"));
       };
 
       img.src = image!;
     });
 
   const handleSubmit = async () => {
+    // Reset previous states
+    setError(null);
+    setSuccess(false);
+
     if (!image || !comfort_level || !coords) {
-      alert("Missing image, comfort level, or location");
+      setError("Missing required information. Please ensure image, comfort level, and location are available.");
       return;
     }
 
@@ -102,7 +121,9 @@ export default function ResultPage() {
         .from("submitted-images")
         .upload(filteredFile.name, filteredFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
+      }
 
       const { error: insertError } = await supabase.from("image_submissions").insert([
         {
@@ -115,12 +136,18 @@ export default function ResultPage() {
         },
       ]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        throw new Error(`Failed to save submission: ${insertError.message}`);
+      }
 
-      router.push("/");
+      setSuccess(true);
+      // Redirect after a short delay to show success message
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Something went wrong during upload.");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -170,14 +197,41 @@ export default function ResultPage() {
         </div>
       )}
 
+      {/* Feedback Messages */}
+      {(error || success) && (
+        <div className="absolute top-4 left-0 right-0 flex justify-center px-4 z-50">
+          <div
+            className={`${
+              error ? "bg-red-600" : "bg-green-600"
+            } text-white rounded-lg px-6 py-3 shadow-lg max-w-md w-full text-center`}
+          >
+            {error ? (
+              <>
+                <p className="font-semibold">Submission Failed</p>
+                <p className="text-sm mt-1">{error}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Success!</p>
+                <p className="text-sm mt-1">Your submission has been saved. Redirecting...</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Submit button */}
       <div className="absolute bottom-6 left-0 right-0 flex justify-center px-4">
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="w-full max-w-md bg-white text-black rounded-md px-6 py-2 font-semibold shadow hover:bg-stone-600 transition font-[family-name:var(--font-geist-mono)]"
+          disabled={loading || success}
+          className={`w-full max-w-md rounded-md px-6 py-2 font-semibold shadow transition font-[family-name:var(--font-geist-mono)] ${
+            loading || success
+              ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+              : "bg-white text-black hover:bg-stone-600"
+          }`}
         >
-          {loading ? "Submitting..." : "Submit"}
+          {loading ? "Submitting..." : success ? "Submitted!" : "Submit"}
         </button>
       </div>
     </div>
