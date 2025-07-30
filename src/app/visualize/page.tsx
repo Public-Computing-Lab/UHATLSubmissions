@@ -20,6 +20,10 @@ export default function VisualizePage() {
   const [addingExtra, setAddingExtra] = useState<boolean>(false);
   const [tempNote, setTempNote] = useState<string>('');
 
+  // New states for marker placement flow
+  const [pendingMarker, setPendingMarker] = useState<{ latlng: LatLng; type: 'hot' | 'cool' | 'extra' } | null>(null);
+  const [showNoteModal, setShowNoteModal] = useState<boolean>(false);
+
   const [hotCoords, setHotCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [coolCoords, setCoolCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -47,19 +51,18 @@ export default function VisualizePage() {
     if (!map) return;
 
     const handleClick = (e: { latlng: LatLng }) => {
-      if (step === 1 && hotNote) {
-        addMarker(e.latlng, hotNote, 'hot');
-        setHotCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
-        setStep(2);
-      } else if (step === 2 && coolNote) {
-        addMarker(e.latlng, coolNote, 'cool');
-        setCoolCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
-        setStep(3);
-      } else if (addingExtra && tempNote) {
-        addMarker(e.latlng, tempNote, 'default');
-        setExtraNotes(prev => [...prev, { latlng: e.latlng, note: tempNote }]);
-        setTempNote('');
-        setAddingExtra(false);
+      if (step === 1) {
+        // Place hot marker first, then ask for note
+        setPendingMarker({ latlng: e.latlng, type: 'hot' });
+        setShowNoteModal(true);
+      } else if (step === 2) {
+        // Place cool marker first, then ask for note
+        setPendingMarker({ latlng: e.latlng, type: 'cool' });
+        setShowNoteModal(true);
+      } else if (addingExtra) {
+        // Place extra marker first, then ask for note
+        setPendingMarker({ latlng: e.latlng, type: 'extra' });
+        setShowNoteModal(true);
       }
     };
 
@@ -67,7 +70,43 @@ export default function VisualizePage() {
     return () => {
       map.off('click', handleClick);
     };
-  }, [map, step, hotNote, coolNote, tempNote, addingExtra, addMarker]);
+  }, [map, step, addingExtra, addMarker]);
+
+  const handleNoteSubmit = (note: string) => {
+    if (!pendingMarker || !note.trim()) return;
+
+    const { latlng, type } = pendingMarker;
+
+    if (type === 'hot') {
+      addMarker(latlng, note, 'hot');
+      setHotNote(note);
+      setHotCoords({ lat: latlng.lat, lng: latlng.lng });
+      setStep(2);
+    } else if (type === 'cool') {
+      addMarker(latlng, note, 'cool');
+      setCoolNote(note);
+      setCoolCoords({ lat: latlng.lat, lng: latlng.lng });
+      setStep(3);
+    } else if (type === 'extra') {
+      addMarker(latlng, note, 'default');
+      setExtraNotes(prev => [...prev, { latlng, note }]);
+      setAddingExtra(false);
+    }
+
+    // Reset modal state
+    setPendingMarker(null);
+    setShowNoteModal(false);
+    setTempNote('');
+  };
+
+  const handleModalCancel = () => {
+    setPendingMarker(null);
+    setShowNoteModal(false);
+    setTempNote('');
+    if (addingExtra) {
+      setAddingExtra(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!hotCoords || !coolCoords) {
@@ -143,12 +182,81 @@ export default function VisualizePage() {
     );
   }
 
+  const getStepInstruction = () => {
+    if (step === 1) return "Tap on the map where you felt the HOTTEST";
+    if (step === 2) return "Tap on the map where you felt the COOLEST";
+    if (addingExtra) return "Tap on the map to add a note";
+    return "";
+  };
+
+  const getMarkerTypeTitle = () => {
+    if (!pendingMarker) return "";
+    if (pendingMarker.type === 'hot') return "Hot Spot Note";
+    if (pendingMarker.type === 'cool') return "Cool Spot Note";
+    if (pendingMarker.type === 'extra') return "Location Note";
+    return "";
+  };
+
+  const getMarkerTypePlaceholder = () => {
+    if (!pendingMarker) return "";
+    if (pendingMarker.type === 'hot') return "Why did this location feel hot? (e.g., direct sunlight, concrete, no shade...)";
+    if (pendingMarker.type === 'cool') return "Why did this location feel cool? (e.g., shade, trees, water nearby...)";
+    if (pendingMarker.type === 'extra') return "What would you like to note about this location?";
+    return "";
+  };
+
   return (
     <div className="sensor-app">
       <div ref={mapRef} className="map-background" />
 
-      {/* Mobile-optimized Step Card */}
-      {showCard && step <= 3 && (
+      {/* Step instruction overlay */}
+      {(step <= 2 || addingExtra) && (
+        <div className="fixed top-4 left-4 right-4 z-[1000] pointer-events-none">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-4 text-center">
+            <p className="text-gray-900 font-medium">{getStepInstruction()}</p>
+            {step <= 2 && (
+              <p className="text-sm text-gray-600 mt-1">Step {step} of 2</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Note input modal */}
+      {showNoteModal && pendingMarker && (
+        <div className="fixed inset-0 z-[1001] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">{getMarkerTypeTitle()}</h3>
+              <textarea
+                placeholder={getMarkerTypePlaceholder()}
+                className="w-full p-4 border border-gray-300 rounded-xl resize-none text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={4}
+                value={tempNote}
+                onChange={(e) => setTempNote(e.target.value)}
+                autoFocus
+              />
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={handleModalCancel}
+                  className="flex-1 py-3 px-4 bg-gray-200 text-gray-800 rounded-xl font-medium hover:bg-gray-300 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleNoteSubmit(tempNote)}
+                  className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!tempNote.trim()}
+                >
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile-optimized Step Card - only for route meaning step */}
+      {showCard && step === 3 && (
         <div className="fixed inset-x-0 bottom-0 z-[1000] transform transition-transform duration-300 ease-out">
           <div className="bg-white rounded-t-3xl shadow-2xl">
             {/* Handle bar */}
@@ -175,28 +283,16 @@ export default function VisualizePage() {
       {/* Mobile-optimized floating buttons */}
       {!showCard && (
         <div className="interaction-overlay">
-          {addingExtra && (
+          {addingExtra && !showNoteModal && (
             <div className="fixed inset-x-0 bottom-0 z-[1000] bg-white rounded-t-3xl shadow-2xl p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Add a Note</h3>
-              <textarea
-                placeholder="What would you like to note about this location?"
-                className="w-full p-4 border border-gray-300 rounded-xl resize-none text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                rows={3}
-                value={tempNote}
-                onChange={(e) => setTempNote(e.target.value)}
-              />
-              <div className="flex gap-3 mt-4">
+              <p className="text-gray-600 mb-4">Tap anywhere on the map to place your marker, then you'll be able to add your note.</p>
+              <div className="flex gap-3">
                 <button 
                   onClick={() => setAddingExtra(false)}
                   className="flex-1 py-3 px-4 bg-gray-200 text-gray-800 rounded-xl font-medium hover:bg-gray-300 transition"
                 >
                   Cancel
-                </button>
-                <button 
-                  className="flex-1 py-3 px-4 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition"
-                  disabled={!tempNote.trim()}
-                >
-                  Tap map to place
                 </button>
               </div>
             </div>

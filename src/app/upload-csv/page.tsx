@@ -89,7 +89,15 @@ export default function Page() {
     try {
       const timestamp = new Date().toISOString();
       const finalTransport = transport === "Other" ? customTransport : transport;
-      const filePath = `csv-${crypto.randomUUID()}`;
+      
+      // Create filename with format: csv-YYYY-MM-DD-HH-MM-SS.csv
+      const now = new Date();
+      const dateTime = now.toISOString()
+        .replace(/:/g, '-')  // Replace colons with dashes
+        .replace(/\./g, '-') // Replace dots with dashes
+        .replace('T', '-')   // Replace T with dash
+        .slice(0, 19);       // Remove milliseconds and Z
+      const filePath = `csv-${dateTime}.csv`;  // Added .csv extension
 
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
