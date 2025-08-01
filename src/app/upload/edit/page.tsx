@@ -41,7 +41,7 @@ export default function EditPage() {
         <div className="pointer-events-auto bg-stone text-white rounded-lg p-6 w-full max-w-md backdrop-blur-lg space-y-4 shadow-lg">
           
           {/* Comfort Level Indicator */}
-          {comfort_level && (
+          {/* {comfort_level && (
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-8 h-8 rounded border-2 border-white shadow-md"
@@ -53,7 +53,7 @@ export default function EditPage() {
                 {comfort_level}
               </span>
             </div>
-          )}
+          )} */}
 
           <label className="flex flex-col text-sm font-medium font-[family-name:var(--font-geist-mono)]">
             Tell us about this photo?

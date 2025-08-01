@@ -1,24 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useSubmission } from "../../context/SubmissionContext";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function ResultPage() {
   const {
     image,
     comfort_level,
     image_importance,
-    lat,
-    long,
+    setLocationCoords,
+    lat: ctxLat,
+    long: ctxLong,
+    setCreatedAt,
     created_at,
   } = useSubmission();
 
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+
+  // Grab the user's current location once the component mounts
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(current);
+        setLocationCoords(current.lat, current.lng);
+        if (!created_at) {
+          setCreatedAt(new Date().toISOString());
+        }
+      },
+      (err) => {
+        console.warn("Location error:", err);
+        setError("Unable to retrieve your location. Please check your location settings.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const gradientMap: Record<string, [string, string]> = {
     Freezing: ["#8CB9F1", "#CFE8FF"],
@@ -105,8 +128,8 @@ export default function ResultPage() {
     setError(null);
     setSuccess(false);
 
-    if (!image || !comfort_level || lat === null || long === null) {
-      setError("Missing required information. Please ensure you've completed all steps.");
+    if (!image || !comfort_level || !coords) {
+      setError("Missing required information. Please ensure image, comfort level, and location are available.");
       return;
     }
 
@@ -131,8 +154,8 @@ export default function ResultPage() {
           image_url: uploadData.path,
           comfort_level,
           comment: image_importance,
-          lat,
-          long,
+          lat: coords.lat,
+          long: coords.lng,
           created_at: timestamp,
         },
       ]);
@@ -174,6 +197,9 @@ export default function ResultPage() {
     };
   };
 
+  // For upload-now, show current time if no created_at is set
+  const displayTime = created_at ? formatDateTime(created_at) : formatDateTime(new Date().toISOString());
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black text-white font-[family-name:var(--font-geist-sans)]">
       {/* Base photo - no gradient overlay */}
@@ -195,7 +221,7 @@ export default function ResultPage() {
           >
             {error ? (
               <>
-                <p className="font-semibold">Submission Failed: Please try again.</p>
+                <p className="font-semibold">Submission Failed. Please try again.</p>
                 <p className="text-sm mt-1">{error}</p>
               </>
             ) : (
@@ -216,13 +242,11 @@ export default function ResultPage() {
         >
           
           {/* Timestamp Section */}
-          {created_at && (
-            <div className="text-center pb-3 border-b border-white/20 mb-3">
-              <p className="text-xs text-gray-200 font-semibold">
-                 {formatDateTime(created_at)}
-              </p>
-            </div>
-          )}
+          <div className="text-center pb-3 border-b border-white/20 mb-3">
+            <p className="text-xs text-gray-200 font-semibold">
+              {displayTime}
+            </p>
+          </div>
 
           {/* Comfort Level Section */}
           {comfort_level && (
@@ -248,11 +272,11 @@ export default function ResultPage() {
           </div>
 
           {/* Location Section */}
-          {lat !== null && long !== null && (
+          {coords && (
             <div className="text-center pb-3 border-b border-white/20 mb-3">
               <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-geist-mono)]">Location</h3>
               <p className="text-xs text-gray-200 font-mono">
-                {lat.toFixed(4)}, {long.toFixed(4)}
+                {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
               </p>
             </div>
           )}

@@ -596,11 +596,8 @@ export default function HomePage() {
           className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-3 z-[3000]"
           onClick={closeModal}
         >
-          <div 
-            className="relative w-full h-full max-w-4xl max-h-full overflow-hidden bg-black text-white rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Background Image or Loading State */}
+          <div className="relative w-full h-screen overflow-hidden bg-black text-white">
+            {/* Background Image */}
             {imageLoading ? (
               <div className="absolute inset-0 w-full h-full bg-gray-800 flex items-center justify-center">
                 <div className="text-white text-center">
@@ -628,52 +625,76 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Comfort Level Overlay */}
-            {!imageLoading && selectedSubmission.signedImageUrl && (
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: `linear-gradient(to bottom, ${gradientMap[selectedSubmission.comfort_level]?.[0]}, ${gradientMap[selectedSubmission.comfort_level]?.[1]})`,
-                  opacity: 0.8,
-                  mixBlendMode: "overlay",
-                }}
-              />
-            )}
-
-            {/* Content Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center px-4 py-20">
-              <div className="bg-stone-900/95 backdrop-blur-sm text-white rounded-2xl p-5 w-full max-w-md space-y-4 shadow-2xl max-h-96 overflow-y-auto border border-white/20">
-                <div>
-                  <strong className="text-base block mb-2 text-blue-300">Comments:</strong>
-                  <p className="text-sm leading-relaxed text-gray-100">{selectedSubmission.comment || "No comments provided"}</p>
-                </div>
-                <div className="border-t border-white/20 pt-3">
-                  <strong className="text-base block mb-1 text-green-300">Comfort Level:</strong>
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className="w-4 h-4 rounded-full border border-white/50"
-                      style={{ backgroundColor: gradientMap[selectedSubmission.comfort_level]?.[0] }}
-                    />
-                    <span className="text-sm">{selectedSubmission.comfort_level}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Location Info */}
-            <div className="absolute bottom-20 left-0 right-0 flex justify-center px-4">
-              <div className="bg-white/95 text-black rounded-lg px-4 py-2 text-sm font-mono shadow-lg backdrop-blur-sm">
-                Location: {selectedSubmission.lat.toFixed(4)}, {selectedSubmission.long.toFixed(4)}
-              </div>
-            </div>
-
             {/* Close Button */}
             <button
               onClick={closeModal}
-              className="absolute top-4 right-4 bg-black/80 text-white rounded-full w-12 h-12 flex items-center justify-center hover:bg-black/90 transition-all text-xl border-2 border-white/20 shadow-lg"
+              className="absolute top-4 right-4 bg-black/80 text-white rounded-full w-12 h-12 flex items-center justify-center hover:bg-black/90 transition-all text-xl border-2 border-white/20 shadow-lg z-50"
             >
               ✕
             </button>
+
+            {/* Main content card - same as result page */}
+            <div 
+              className="absolute inset-0 flex items-center justify-center px-3 py-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div 
+                className="text-white rounded-lg p-4 w-full max-w-sm shadow-xl border border-white/20"
+                style={{
+                  backgroundColor: `${gradientMap[selectedSubmission.comfort_level]?.[1]}20`,
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                
+                {/* Timestamp Section */}
+                <div className="text-center pb-3 border-b border-white/20 mb-3">
+                  <p className="text-xs text-gray-200 font-semibold">
+                    {formatDateTime(selectedSubmission.created_at)}
+                  </p>
+                </div>
+
+                {/* Comfort Level Section */}
+                <div className="text-center pb-3 border-b border-white/20 mb-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <div
+                      className="w-5 h-5 rounded border-2 border-white shadow-md"
+                      style={{
+                        background: `linear-gradient(to bottom, ${gradientMap[selectedSubmission.comfort_level]?.[0]}, ${gradientMap[selectedSubmission.comfort_level]?.[1]})`,
+                      }}
+                    />
+                    <span className="text-xs font-medium">
+                      {selectedSubmission.comfort_level}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description Section */}
+                <div className="pb-3 border-b border-white/20 mb-3">
+                  <h3 className="text-center text-sm font-semibold mb-2 font-[family-name:var(--font-geist-mono)]">About This Photo</h3>
+                  <p className="text-center text-xs leading-relaxed text-gray-100">
+                    {selectedSubmission.comment || "No description provided"}
+                  </p>
+                </div>
+
+                {/* Location Section */}
+                <div className="text-center pb-3 border-b border-white/20 mb-3">
+                  <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-geist-mono)]">Location</h3>
+                  <p className="text-xs text-gray-200 font-mono">
+                    {selectedSubmission.lat.toFixed(4)}, {selectedSubmission.long.toFixed(4)}
+                  </p>
+                </div>
+
+                {/* Action Section */}
+                <div className="text-center">
+                  <button
+                    onClick={closeModal}
+                    className="w-full rounded-lg px-6 py-2.5 text-sm font-semibold shadow-lg transition-all duration-200 font-[family-name:var(--font-geist-mono)] bg-white text-black hover:bg-gray-100 transform hover:scale-105"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -702,3 +723,16 @@ export default function HomePage() {
     </main>
   );
 }
+
+// Add the formatDateTime function before the return statement
+const formatDateTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
