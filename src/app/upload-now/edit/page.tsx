@@ -36,35 +36,39 @@ export default function EditPage() {
         />
       )}
 
-      {/* Gradient overlay */}
-      {comfort_level && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: gradientMap[comfort_level] || "transparent",
-            opacity: 0.8,
-            mixBlendMode: "overlay",
-          }}
-        />
-      )}
+      {/* Centered Form Box - mobile optimized */}
+      <div className="absolute inset-0 flex items-center justify-center px-3 py-8">
+        <div className="pointer-events-auto bg-stone-800/90 text-white rounded-lg p-4 w-full max-w-sm backdrop-blur-lg space-y-3 shadow-xl border border-white/20">
+          
+          {/* Comfort Level Indicator */}
+          {comfort_level && (
+            <div className="flex items-center gap-2 pb-3 border-b border-white/20 mb-3">
+              <div
+                className="w-5 h-5 rounded border-2 border-white shadow-md"
+                style={{
+                  background: gradientMap[comfort_level] || "transparent",
+                }}
+              />
+              <span className="text-xs font-medium font-[family-name:var(--font-geist-mono)]">
+                {comfort_level}
+              </span>
+            </div>
+          )}
 
-      {/* Centered Form Box */}
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="pointer-events-auto bg-stone text-white rounded-lg p-6 w-full max-w-md backdrop-blur-lg space-y-4 shadow-lg">
-          <label className="flex flex-col text-sm font-medium font-[family-name:var(--font-geist-mono)]">
+          <label className="flex flex-col text-xs font-medium font-[family-name:var(--font-geist-mono)]">
             Tell us about this photo?
             <textarea
               value={image_importance ?? ""}
               onChange={(e) => setImageImportance(e.target.value)}
               placeholder="Why is this place important to you? How is your body responding to the temperature? How has temperature impacted your plans for the day? What do you notice?"
-              className="mt-1 p-2 rounded-md bg-white text-black border border-gray-300 resize-none"
-              rows={8}
+              className="mt-2 p-2 rounded-md bg-white text-black border border-gray-300 resize-none text-xs"
+              rows={6}
             />
           </label>
 
           <button
             onClick={handleSubmit}
-            className="w-full mt-2 bg-white text-black rounded-md px-6 py-2 font-semibold shadow hover:bg-stone-600 transition font-[family-name:var(--font-geist-mono)]"
+            className="w-full mt-3 bg-white text-black rounded-lg px-6 py-2.5 text-sm font-semibold shadow-lg hover:bg-gray-100 transition-all duration-200 font-[family-name:var(--font-geist-mono)] transform hover:scale-105"
           >
             Review
           </button>

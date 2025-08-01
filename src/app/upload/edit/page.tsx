@@ -36,21 +36,25 @@ export default function EditPage() {
         />
       )}
 
-      {/* Gradient overlay */}
-      {comfort_level && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: gradientMap[comfort_level] || "transparent",
-            opacity: 0.8,
-            mixBlendMode: "overlay",
-          }}
-        />
-      )}
-
       {/* Centered Form Box */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="pointer-events-auto bg-stone text-white rounded-lg p-6 w-full max-w-md backdrop-blur-lg space-y-4 shadow-lg">
+          
+          {/* Comfort Level Indicator */}
+          {comfort_level && (
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-8 h-8 rounded border-2 border-white shadow-md"
+                style={{
+                  background: gradientMap[comfort_level] || "transparent",
+                }}
+              />
+              <span className="text-sm font-medium font-[family-name:var(--font-geist-mono)]">
+                {comfort_level}
+              </span>
+            </div>
+          )}
+
           <label className="flex flex-col text-sm font-medium font-[family-name:var(--font-geist-mono)]">
             Tell us about this photo?
             <textarea
