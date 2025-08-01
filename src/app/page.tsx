@@ -633,62 +633,83 @@ export default function HomePage() {
               ✕
             </button>
 
-            {/* Main content card - same as result page */}
+            {/* Main content card - aggressive gradient coloring */}
             <div 
               className="absolute inset-0 flex items-center justify-center px-3 py-8"
               onClick={(e) => e.stopPropagation()}
             >
               <div 
-                className="text-white rounded-lg p-4 w-full max-w-sm shadow-xl border border-white/20"
+                className="text-white rounded-lg p-4 w-full max-w-sm shadow-xl border-2 border-white/40"
                 style={{
-                  backgroundColor: `${gradientMap[selectedSubmission.comfort_level]?.[1]}20`,
-                  backdropFilter: "blur(10px)",
+                  background: `linear-gradient(135deg, ${gradientMap[selectedSubmission.comfort_level]?.[0]}CC, ${gradientMap[selectedSubmission.comfort_level]?.[1]}E6)`,
+                  backdropFilter: "blur(15px)",
+                  boxShadow: `0 8px 32px ${gradientMap[selectedSubmission.comfort_level]?.[0]}40`,
                 }}
               >
                 
                 {/* Timestamp Section */}
-                <div className="text-center pb-3 border-b border-white/20 mb-3">
-                  <p className="text-xs text-gray-200 font-semibold">
+                <div className="text-center pb-3 border-b border-white/40 mb-3">
+                  <p className="text-xs font-bold text-white drop-shadow-lg">
                     {formatDateTime(selectedSubmission.created_at)}
                   </p>
                 </div>
 
                 {/* Comfort Level Section */}
-                <div className="text-center pb-3 border-b border-white/20 mb-3">
-                  <div className="flex items-center justify-center gap-2">
+                <div className="text-center pb-3 border-b border-white/40 mb-3">
+                  <div className="flex items-center justify-center gap-3">
                     <div
-                      className="w-5 h-5 rounded border-2 border-white shadow-md"
+                      className="w-6 h-6 rounded-full border-3 border-white shadow-lg"
                       style={{
                         background: `linear-gradient(to bottom, ${gradientMap[selectedSubmission.comfort_level]?.[0]}, ${gradientMap[selectedSubmission.comfort_level]?.[1]})`,
+                        boxShadow: `0 4px 12px ${gradientMap[selectedSubmission.comfort_level]?.[0]}60`,
                       }}
                     />
-                    <span className="text-xs font-medium">
+                    <span className="text-sm font-bold text-white drop-shadow-lg">
                       {selectedSubmission.comfort_level}
                     </span>
                   </div>
                 </div>
 
                 {/* Description Section */}
-                <div className="pb-3 border-b border-white/20 mb-3">
-                  <h3 className="text-center text-sm font-semibold mb-2 font-[family-name:var(--font-geist-mono)]">About This Photo</h3>
-                  <p className="text-center text-xs leading-relaxed text-gray-100">
-                    {selectedSubmission.comment || "No description provided"}
-                  </p>
+                <div className="pb-3 border-b border-white/40 mb-3">
+                  <h3 className="text-center text-sm font-bold mb-3 text-white drop-shadow-lg font-[family-name:var(--font-geist-mono)]">About This Photo</h3>
+                  <div 
+                    className="text-center text-xs leading-relaxed p-3 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                  >
+                    <p className="text-white font-medium drop-shadow-sm">
+                      {selectedSubmission.comment || "No description provided"}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Location Section */}
-                <div className="text-center pb-3 border-b border-white/20 mb-3">
-                  <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-geist-mono)]">Location</h3>
-                  <p className="text-xs text-gray-200 font-mono">
-                    {selectedSubmission.lat.toFixed(4)}, {selectedSubmission.long.toFixed(4)}
-                  </p>
-                </div>
+                {/* <div className="text-center pb-3 border-b border-white/40 mb-3">
+                  <h3 className="text-sm font-bold mb-2 text-white drop-shadow-lg font-[family-name:var(--font-geist-mono)]">Location</h3>
+                  <div 
+                    className="text-xs p-2 rounded-lg font-mono"
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                  >
+                    <p className="text-white font-semibold drop-shadow-sm">
+                      {selectedSubmission.lat.toFixed(4)}, {selectedSubmission.long.toFixed(4)}
+                    </p>
+                  </div>
+                </div> */}
 
                 {/* Action Section */}
                 <div className="text-center">
                   <button
                     onClick={closeModal}
-                    className="w-full rounded-lg px-6 py-2.5 text-sm font-semibold shadow-lg transition-all duration-200 font-[family-name:var(--font-geist-mono)] bg-white text-black hover:bg-gray-100 transform hover:scale-105"
+                    className="w-full rounded-lg px-6 py-3 text-sm font-bold shadow-lg transition-all duration-200 font-[family-name:var(--font-geist-mono)] bg-white/95 text-black hover:bg-white hover:scale-105 backdrop-blur-sm"
+                    style={{
+                      boxShadow: `0 4px 16px ${gradientMap[selectedSubmission.comfort_level]?.[0]}40`,
+                    }}
                   >
                     Close
                   </button>
