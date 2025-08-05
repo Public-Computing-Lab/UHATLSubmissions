@@ -1,6 +1,6 @@
 'use client';
 
-import './styles/stepcard.css'
+import './StepCard.css'
 
 export default function StepCard({
   step,

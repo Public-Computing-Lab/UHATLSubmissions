@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useSubmission } from "@/app/context/SubmissionContext";
-import { parseCsv, analyzeCsvRows } from "@/components/csvMap/parseCsv";
+// Remove client-side CSV parsing - using server-side edge function instead
 
 export default function Page() {
   const [name, setName] = useState<string>("");
@@ -172,14 +172,12 @@ export default function Page() {
       setCreatedAt(timestamp);
       setCsvUrl(uploadData.path);
 
-      const parsedRows = parseCsv(csvText);
-      const analysis = analyzeCsvRows(parsedRows);
-
-      setNumRecords(analysis.numRecords);
-      setMissingLatLng(analysis.missingLatLng);
-      setMissingInternalTemp(analysis.missingInternalTemp);
-      setMissingProbeTemp(analysis.missingProbeTemp);
-      setTotalMinutes(analysis.totalMinutes);
+      // Use server-processed metadata instead of client-side parsing
+      setNumRecords(processResult.numRecords);
+      setMissingLatLng(processResult.hasLatLng === 'FALSE');
+      setMissingInternalTemp(processResult.hasInternalTemp === 'FALSE');
+      setMissingProbeTemp(processResult.hasProbeTemp === 'FALSE');
+      setTotalMinutes(processResult.totalMinutes);
 
       router.push("/visualize");
     } catch (err) {

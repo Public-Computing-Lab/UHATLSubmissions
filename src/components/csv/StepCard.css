@@ -54,3 +54,12 @@
   z-index: 20;
   font-weight: bold;
 }
+
+.step-card-mobile {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 16px;
+}

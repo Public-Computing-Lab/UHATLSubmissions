@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { LatLngExpression, Map as LeafletMap, Icon, Marker } from 'leaflet';
-import { parseCsv } from './parseCsv';
-import { temperatureToColor } from './temperatureColor';
+import { parseStoredCsvForVisualization, temperatureToColor, type CsvDataPoint } from './utils';
 
 export default function useLeafletMap() {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -13,7 +12,8 @@ export default function useLeafletMap() {
   useEffect(() => {
     const csvText = sessionStorage.getItem('csvData');
     if (!csvText) return;
-    const data = parseCsv(csvText);
+    
+    const data = parseStoredCsvForVisualization(csvText);
 
     const load = async () => {
       if (!(window as any).L) {
@@ -31,7 +31,7 @@ export default function useLeafletMap() {
       }
     };
 
-    const initMap = (LInstance: typeof import('leaflet'), data: any[]) => {
+    const initMap = (LInstance: typeof import('leaflet'), data: CsvDataPoint[]) => {
       setL(LInstance);
       const m = LInstance.map(mapRef.current as HTMLDivElement);
       LInstance.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -41,15 +41,18 @@ export default function useLeafletMap() {
       }).addTo(m);
       setMap(m);
 
-      const latlngs: LatLngExpression[] = data.map(d => [d.lat, d.lng]);
-      const bounds = LInstance.latLngBounds(latlngs);
-      m.fitBounds(bounds, { padding: [40, 40] });
+      if (data.length > 0) {
+        const latlngs: LatLngExpression[] = data.map(d => [d.lat, d.lng]);
+        const bounds = LInstance.latLngBounds(latlngs);
+        m.fitBounds(bounds, { padding: [40, 40] });
 
-      for (let i = 0; i < data.length - 1; i++) {
-        const p1 = data[i];
-        const p2 = data[i + 1];
-        const color = temperatureToColor(p1.probeTemp);
-        LInstance.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], { color }).addTo(m);
+        // Draw temperature path
+        for (let i = 0; i < data.length - 1; i++) {
+          const p1 = data[i];
+          const p2 = data[i + 1];
+          const color = temperatureToColor(p1.probeTemp);
+          LInstance.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], { color }).addTo(m);
+        }
       }
     };
 
@@ -84,5 +87,5 @@ export default function useLeafletMap() {
     return marker;
   };
 
-  return { mapRef, L, map, drawTemperaturePath: () => {}, addMarker };
+  return { mapRef, L, map, addMarker };
 }

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { LatLng } from "leaflet";
-import useLeafletMap from "@/components/csvMap/useLeafletMap";
-import StepCard from "@/components/csvMap/StepCard";
+import useLeafletMap from "@/components/csv/useLeafletMap";
+import StepCard from "@/components/csv/StepCard";
 import { supabase } from "@/lib/supabase";
 import { useSubmission } from "@/app/context/SubmissionContext";
 
 export default function VisualizePage() {
-  const { mapRef, L, map, drawTemperaturePath, addMarker } = useLeafletMap();
+  const { mapRef, L, map, addMarker } = useLeafletMap();
 
   const [step, setStep] = useState<number>(1);
   const [hotNote, setHotNote] = useState<string>('');
@@ -42,10 +42,8 @@ export default function VisualizePage() {
   } = useSubmission();
 
   useEffect(() => {
-    if (map && L) {
-      drawTemperaturePath();
-    }
-  }, [map, L, drawTemperaturePath]);
+    // Temperature path is now drawn automatically in useLeafletMap
+  }, [map, L]);
 
   useEffect(() => {
     if (!map) return;
