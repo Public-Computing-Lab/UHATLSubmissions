@@ -205,28 +205,66 @@ export default function HomePage() {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 text-gray-800">Data Requirements:</h3>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Using the Sensor</h3>
                 <ul className="space-y-3 text-sm text-gray-600">
                   <li className="flex items-start">
                     <span className="mr-2 text-green-500">•</span>
-                    <span>CSV format from PocketLab sensors</span>
+                    <span>Track "internal temperature" and "temperature probe"</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2 text-green-500">•</span>
-                    <span>Include GPS coordinates and temperature data</span>
+                    <span>Enable location tracking</span>
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2 text-green-500">•</span>
-                    <span>Ensure data quality with proper probe handling</span>
+                    <span>Data rate should be 1pt/sec</span>
                   </li>
                 </ul>
               </div>
 
-              <Link
-                href="/upload-csv"
-                className="block w-full text-center bg-green-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-green-700 transition-colors duration-200 shadow-lg">
-                Upload CSV File
-              </Link>
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">On Your Walk</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>Hold the sensor away from your body</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>Keep the Pocketlab app open and keep your phone awake</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 text-gray-800">Data Requirements</h3>
+                <ul className="space-y-3 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>CSV format</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2 text-green-500">•</span>
+                    <span>Include latitude, longitude, and temperature probe measurements</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-3">
+                <Link
+                  href="/upload-csv"
+                  className="block w-full text-center bg-green-600 text-white font-semibold py-4 px-4 rounded-xl hover:bg-green-700 transition-colors duration-200 shadow-lg"
+                >
+                  Upload CSV File
+                </Link>
+                
+                <Link
+                  href=""
+                  className="block w-full text-center bg-white border-2 border-green-600 text-green-600 font-semibold py-4 px-4 rounded-xl hover:bg-green-50 transition-colors duration-200"
+                >
+                  Full Instructions and Training Materials
+                </Link>
+              </div>
             </div>
           </div>
         );
