@@ -259,7 +259,7 @@ export default function HomePage() {
                 </Link>
                 
                 <Link
-                  href=""
+                  href="https://drive.google.com/drive/folders/1acIsa2Z3lIGIsi3eC0-wFVcIQRIDpxSB"
                   className="block w-full text-center bg-white border-2 border-green-600 text-green-600 font-semibold py-4 px-4 rounded-xl hover:bg-green-50 transition-colors duration-200"
                 >
                   Full Instructions and Training Materials
