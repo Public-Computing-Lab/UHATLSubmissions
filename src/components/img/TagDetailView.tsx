@@ -28,7 +28,7 @@ export default function TagDetailView({ tagName, onBack }: TagDetailViewProps) {
   const [showOverlay, setShowOverlay] = useState(true);
   const [progress, setProgress] = useState(0);
   const progressRef = useRef<number>(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   const STORY_DURATION = 5000; // 5 seconds per story
   const MAX_STORIES = 6;
@@ -118,7 +118,7 @@ export default function TagDetailView({ tagName, onBack }: TagDetailViewProps) {
     progressRef.current = 0;
     setProgress(0);
     
-    intervalRef.current = setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       progressRef.current += 100 / (STORY_DURATION / 100);
       setProgress(progressRef.current);
       
