@@ -14,6 +14,7 @@ type SubmissionData = {
   mode_of_transport: string | null;
   csv_url: string | null;
   submissionId: number | null;
+  tags: string[];
 
   // Flattened CSV metadata
   numRecords: number | null;
@@ -34,6 +35,7 @@ type SubmissionContextType = SubmissionData & {
   setAreaOfInterest: (area: string | null) => void;
   setModeOfTransport: (transport: string | null) => void;
   setCsvUrl: (url: string | null) => void;
+  setTags: (tags: string[]) => void; // Add this
 
   setSubmissionId: (submissionId: number | null) => void;
 
@@ -61,6 +63,7 @@ export const SubmissionProvider = ({ children }: { children: ReactNode }) => {
   const [area_of_interest, setAreaOfInterest] = useState<string | null>(null);
   const [mode_of_transport, setModeOfTransport] = useState<string | null>(null);
   const [csv_url, setCsvUrl] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]); // Add this
 
   const [submissionId, setSubmissionId] = useState<number | null>(null);
 
@@ -88,6 +91,7 @@ export const SubmissionProvider = ({ children }: { children: ReactNode }) => {
     setAreaOfInterest(null);
     setModeOfTransport(null);
     setCsvUrl(null);
+    setTags([]);
     setNumRecords(null);
     setMissingLatLng(false);
     setMissingInternalTemp(false);
@@ -110,6 +114,7 @@ export const SubmissionProvider = ({ children }: { children: ReactNode }) => {
         area_of_interest,
         mode_of_transport,
         csv_url,
+        tags,
         numRecords,
         missingLatLng,
         missingInternalTemp,
@@ -127,6 +132,7 @@ export const SubmissionProvider = ({ children }: { children: ReactNode }) => {
         setAreaOfInterest,
         setModeOfTransport,
         setCsvUrl,
+        setTags,
         setNumRecords,
         setMissingLatLng,
         setMissingInternalTemp,

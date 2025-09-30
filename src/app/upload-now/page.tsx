@@ -7,9 +7,10 @@ import { useSubmission } from "../context/SubmissionContext";
 export default function Page() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [comfortLevel, setComfortLevel] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const router = useRouter();
 
-  const { setImage, setComfortLevel: setContextComfortLevel } = useSubmission();
+  const { setImage, setComfortLevel: setContextComfortLevel, setTags } = useSubmission();
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,6 +47,15 @@ export default function Page() {
     setImage(null);
   };
 
+  const handleTagToggle = (tag: string) => {
+    const updatedTags = selectedTags.includes(tag)
+      ? selectedTags.filter(t => t !== tag)
+      : [...selectedTags, tag];
+    
+    setSelectedTags(updatedTags);
+    setTags(updatedTags);
+  };
+
   const handleNextClick = () => {
     if (imagePreview && comfortLevel) {
       router.push("/upload-now/edit");
@@ -63,6 +73,15 @@ export default function Page() {
     { value: "Warm", color: "from-yellow-400 to-yellow-600", emoji: "😅" },
     { value: "Hot", color: "from-orange-400 to-orange-600", emoji: "🥵" },
     { value: "Sweltering", color: "from-red-400 to-red-600", emoji: "🔥" }
+  ];
+
+  const availableTags = [
+    { value: "cooling off", color: "from-blue-100 to-blue-200" },
+    { value: "public space", color: "from-green-100 to-green-200" },
+    { value: "commute", color: "from-purple-100 to-purple-200" },
+    { value: "working outside", color: "from-orange-100 to-orange-200" },
+    { value: "health impacts", color: "from-red-100 to-red-200" },
+    { value: "shade", color: "from-teal-100 to-teal-200" }
   ];
 
   return (
@@ -127,9 +146,6 @@ export default function Page() {
 
               {/* File Input */}
               <label className="block w-full">
-                {/* <div className="py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-center hover:border-purple-400 hover:bg-purple-50 transition-colors cursor-pointer">
-                  <p className="text-sm text-gray-600">Or choose from gallery</p>
-                </div> */}
                 <input
                   id="camera-input"
                   type="file"
@@ -185,6 +201,54 @@ export default function Page() {
               </label>
             ))}
           </div>
+        </div>
+
+        {/* Tags Section */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            Step 3: Tags!
+          </h2>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {availableTags.map((tag) => (
+              <button
+                key={tag.value}
+                onClick={() => handleTagToggle(tag.value)}
+                className={`p-3 rounded-xl border-2 transition-all duration-200 transform ${
+                  selectedTags.includes(tag.value)
+                    ? `border-purple-500 bg-gradient-to-br ${tag.color} shadow-md scale-105`
+                    : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:scale-102'
+                }`}
+              >
+                <div className="text-center">
+                  <p className={`mt-1 text-xs font-medium ${
+                    selectedTags.includes(tag.value) ? 'text-gray-800' : 'text-gray-600'
+                  }`}>
+                    {tag.value}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          {selectedTags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full flex items-center gap-1"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handleTagToggle(tag)}
+                    className="ml-1 text-purple-600 hover:text-purple-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Next Button */}

@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap } from "leaflet";
 import { useMap } from "react-leaflet";
+import StorybookView from "@/components/img/StorybookView";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const MapContainer = dynamic(() => import("react-leaflet").then(m => m.MapContainer), { ssr: false });
@@ -25,6 +26,7 @@ function MapRefConnector({ setRef }: { setRef: (map: LeafletMap) => void }) {
 }
 
 type OverlayType = 'picture' | 'sensor' | 'layers' | 'mapStyle' | null;
+type ViewMode = 'map' | 'storybook';
 
 // Map style options
 const mapStyles = {
@@ -69,6 +71,7 @@ interface ImageSubmission {
 export default function HomePage() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayType>(null);
   const [showInitialOverlay, setShowInitialOverlay] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [mapStyle, setMapStyle] = useState<keyof typeof mapStyles>("clean");
   const [layerStates, setLayerStates] = useState({
     satellite: false,
@@ -474,33 +477,71 @@ export default function HomePage() {
 
   return (
     <main className="relative w-full h-screen font-sans">
-      <MapContainer
-        center={[33.7756, -84.3963]}
-        zoom={12}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution={mapStyles[mapStyle].attribution}
-          url={mapStyles[mapStyle].url}
-        />
-        
-        {/* Add markers for image submissions */}
-        {layerStates.photoMarkers && imageSubmissions.map((submission) => (
-          colorIcons[submission.comfort_level] && (
-            <Marker
-              key={submission.id}
-              position={[submission.lat, submission.long]}
-              icon={colorIcons[submission.comfort_level]}
-              eventHandlers={{
-                click: () => handleMarkerClick(submission),
-              }}
-            />
-          )
-        ))}
-        
-        <MapRefConnector setRef={(map) => { mapRef.current = map; }} />
-      </MapContainer>
+      {/* View Mode Toggle at Top */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[2000] bg-white rounded-full p-1 shadow-lg">
+        <div className="flex">
+          <button
+            onClick={() => setViewMode('map')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
+              viewMode === 'map'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            <span>Map</span>
+          </button>
+          <button
+            onClick={() => setViewMode('storybook')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
+              viewMode === 'storybook'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <span>Story</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Map Container - Only show when map mode is active */}
+      {viewMode === 'map' && (
+        <MapContainer
+          center={[33.7756, -84.3963]}
+          zoom={12}
+          style={{ height: "100%", width: "100%" }}
+          scrollWheelZoom={true}
+        >
+          <TileLayer
+            attribution={mapStyles[mapStyle].attribution}
+            url={mapStyles[mapStyle].url}
+          />
+          
+          {/* Add markers for image submissions */}
+          {layerStates.photoMarkers && imageSubmissions.map((submission) => (
+            colorIcons[submission.comfort_level] && (
+              <Marker
+                key={submission.id}
+                position={[submission.lat, submission.long]}
+                icon={colorIcons[submission.comfort_level]}
+                eventHandlers={{
+                  click: () => handleMarkerClick(submission),
+                }}
+              />
+            )
+          ))}
+          
+          <MapRefConnector setRef={(map) => { mapRef.current = map; }} />
+        </MapContainer>
+      )}
+
+      {/* Storybook View - Show when storybook mode is active */}
+      {viewMode === 'storybook' && <StorybookView />}
       
       {/* Initial Overlay with Three Buttons */}
       {showInitialOverlay && (

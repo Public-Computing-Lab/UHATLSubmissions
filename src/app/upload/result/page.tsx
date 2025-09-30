@@ -13,6 +13,7 @@ export default function ResultPage() {
     lat,
     long,
     created_at,
+    tags,
   } = useSubmission();
 
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,20 @@ export default function ResultPage() {
     Warm: ["#FFD500", "#FFF3B0"],
     Hot: ["#E27100", "#FFB74D"],
     Sweltering: ["#6C1D45", "#FF4B4B"],
+  };
+
+  // Function to determine time of day based on hour
+  const getTimeOfDay = (dateString: string): string => {
+    const date = new Date(dateString);
+    const hour = date.getHours();
+    
+    if (hour >= 5 && hour < 7) return 'dawn';
+    if (hour >= 7 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 14) return 'noon';
+    if (hour >= 14 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 19) return 'evening';
+    if (hour >= 19 && hour < 22) return 'dusk';
+    return 'night';
   };
 
   /** Convert the uploaded image to a File suitable for upload (without filter) */
@@ -124,8 +139,18 @@ export default function ResultPage() {
         throw new Error(`Failed to upload image: ${uploadError.message}`);
       }
 
-      // 3 – insert row in DB
+      // 3 – prepare tags with comfort level and time of day
       const timestamp = created_at ?? new Date().toISOString();
+      const timeOfDay = getTimeOfDay(timestamp);
+      
+      // Combine user tags with automatic tags
+      const allTags = [
+        ...tags, // User selected tags
+        comfort_level.toLowerCase(), // Add comfort level as tag
+        timeOfDay // Add time of day as tag
+      ];
+
+      // 4 – insert row in DB with tags
       const { error: insertError } = await supabase.from("image_submissions").insert([
         {
           image_url: uploadData.path,
@@ -134,6 +159,7 @@ export default function ResultPage() {
           lat,
           long,
           created_at: timestamp,
+          tags: allTags,
         },
       ]);
       if (insertError) {
@@ -237,6 +263,31 @@ export default function ResultPage() {
               </div>
             </div>
           )}
+
+          {/* Tags Section
+          {tags.length > 0 && (
+            <div className="pb-3 border-b border-white/40 mb-3">
+              <h3 className="text-center text-sm font-bold mb-2 text-white drop-shadow-lg font-[family-name:var(--font-geist-mono)]">Tags</h3>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-white/20 text-white text-xs rounded-full backdrop-blur-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                <span className="px-2 py-1 bg-white/30 text-white text-xs rounded-full backdrop-blur-sm">
+                  {comfort_level?.toLowerCase()}
+                </span>
+                {created_at && (
+                  <span className="px-2 py-1 bg-white/30 text-white text-xs rounded-full backdrop-blur-sm">
+                    {getTimeOfDay(created_at)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )} */}
 
           {/* Description Section */}
           <div className="pb-3 border-b border-white/40 mb-3">

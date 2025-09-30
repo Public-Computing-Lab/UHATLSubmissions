@@ -7,6 +7,7 @@ import { useSubmission } from "../context/SubmissionContext";
 export default function Page() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [comfortLevel, setComfortLevel] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [selectedDateTime, setSelectedDateTime] = useState<string>("");
   const [map, setMap] = useState<any>(null);
@@ -17,6 +18,7 @@ export default function Page() {
   const {
     setImage,
     setComfortLevel: setContextComfortLevel,
+    setTags,
     setLocationCoords,
     setCreatedAt,
   } = useSubmission();
@@ -103,6 +105,15 @@ export default function Page() {
     setImage(null);
   };
 
+  const handleTagToggle = (tag: string) => {
+    const updatedTags = selectedTags.includes(tag)
+      ? selectedTags.filter(t => t !== tag)
+      : [...selectedTags, tag];
+    
+    setSelectedTags(updatedTags);
+    setTags(updatedTags);
+  };
+
   const handleNextClick = () => {
     if (imagePreview && comfortLevel && selectedLocation && selectedDateTime) {
       const dateTime = new Date(selectedDateTime);
@@ -121,6 +132,15 @@ export default function Page() {
     { value: "Warm", color: "from-yellow-400 to-yellow-600", emoji: "😅" },
     { value: "Hot", color: "from-orange-400 to-orange-600", emoji: "🥵" },
     { value: "Sweltering", color: "from-red-400 to-red-600", emoji: "🔥" }
+  ];
+
+  const availableTags = [
+    { value: "cooling off", color: "from-blue-100 to-blue-200" },
+    { value: "public space", color: "from-green-100 to-green-200" },
+    { value: "commute", color: "from-purple-100 to-purple-200" },
+    { value: "working outside", color: "from-orange-100 to-orange-200" },
+    { value: "health impacts", color: "from-red-100 to-red-200" },
+    { value: "shade", color: "from-teal-100 to-teal-200" }
   ];
 
   return (
@@ -234,9 +254,57 @@ export default function Page() {
           </div>
         </div>
 
+        {/* Tags Section */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            Step 3: Tags!
+          </h2>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {availableTags.map((tag) => (
+              <button
+                key={tag.value}
+                onClick={() => handleTagToggle(tag.value)}
+                className={`p-3 rounded-xl border-2 transition-all duration-200 transform ${
+                  selectedTags.includes(tag.value)
+                    ? `border-purple-500 bg-gradient-to-br ${tag.color} shadow-md scale-105`
+                    : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:scale-102'
+                }`}
+              >
+                <div className="text-center">
+                  <p className={`mt-1 text-xs font-medium ${
+                    selectedTags.includes(tag.value) ? 'text-gray-800' : 'text-gray-600'
+                  }`}>
+                    {tag.value}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          {selectedTags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full flex items-center gap-1"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handleTagToggle(tag)}
+                    className="ml-1 text-purple-600 hover:text-purple-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Location Section */}
         <div className="bg-white rounded-2xl p-6 shadow-lg">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 3: Where was this?</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 4: Where was this?</h2>
           <p className="text-sm text-gray-600 mb-4">Tap the map to mark the location</p>
           
           <div className="space-y-3">
@@ -256,7 +324,7 @@ export default function Page() {
 
         {/* Date and Time Section */}
         <div className="bg-white rounded-2xl p-6 shadow-lg">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 4: When was this?</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 5: When was this?</h2>
           
           <input
             type="datetime-local"
