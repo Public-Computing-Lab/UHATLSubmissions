@@ -43,7 +43,7 @@ export default function StepCard({
       };
     }
     return {
-      title: 'Tell Your Story 📖',
+      title: 'Tell Your Story',
       desc: 'What does this route mean to you? Why did you choose to collect data here?',
       value: routeMeaning,
       setter: setRouteMeaning,
