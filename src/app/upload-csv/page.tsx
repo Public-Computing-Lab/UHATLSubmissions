@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useSubmission } from "@/app/context/SubmissionContext";
+import { fixDoubleHeaderCsv } from "@/components/csv/utils";
+
 // Remove client-side CSV parsing - using server-side edge function instead
 
 // Add interface for validation result
@@ -78,7 +80,7 @@ export default function Page() {
     return { headers, data: dataRows };
   };
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     setError("");
     // More robust CSV file detection for Android compatibility
     const isCSV = file?.type === "text/csv" || 
@@ -87,7 +89,20 @@ export default function Page() {
                   file?.name.toLowerCase().endsWith('.csv');
     
     if (isCSV) {
-      setSelectedFile(file);
+      // Read the file and fix double header if present
+      try {
+        const csvText = await file.text();
+        const correctedCsvText = fixDoubleHeaderCsv(csvText);
+        
+        // Create a new File object with the corrected content
+        const correctedBlob = new Blob([correctedCsvText], { type: 'text/csv' });
+        const correctedFile = new File([correctedBlob], file.name, { type: 'text/csv' });
+        
+        setSelectedFile(correctedFile);
+      } catch (error) {
+        console.error("Error processing CSV:", error);
+        setError("Failed to process CSV file");
+      }
     } else {
       setError("Please select a valid CSV file");
     }

@@ -174,3 +174,121 @@ export function getTemperatureStats(dataPoints: CsvDataPoint[]): {
 export function formatTemperature(temp: number): string {
   return `${Math.round(temp * 10) / 10}°F`;
 }
+
+/**
+ * Detects if a CSV has a double header format and merges the two halves horizontally
+ * Returns the original CSV if no double header is detected
+ */
+export function fixDoubleHeaderCsv(csvText: string): string {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  
+  if (lines.length < 2) {
+    return csvText; // Not enough lines to have a double header
+  }
+
+  // Check if this is a double header CSV
+  const isDoubleHeader = checkForDoubleHeader(lines);
+  
+  if (!isDoubleHeader) {
+    return csvText; // No double header detected, return original
+  }
+
+  // Double header detected - merge the two halves horizontally
+  const midpoint = Math.floor(lines.length / 2);
+  
+  // Get the two halves
+  const firstHalf = lines.slice(0, midpoint);
+  const secondHalf = lines.slice(midpoint);
+  
+  // Merge each corresponding row from both halves
+  const mergedLines: string[] = [];
+  const maxLength = Math.max(firstHalf.length, secondHalf.length);
+  
+  for (let i = 0; i < maxLength; i++) {
+    const firstRow = i < firstHalf.length ? firstHalf[i] : '';
+    const secondRow = i < secondHalf.length ? secondHalf[i] : '';
+    
+    // Merge the rows by concatenating them with a comma
+    if (firstRow && secondRow) {
+      mergedLines.push(`${firstRow},${secondRow}`);
+    } else if (firstRow) {
+      mergedLines.push(firstRow);
+    } else if (secondRow) {
+      mergedLines.push(secondRow);
+    }
+  }
+
+  return mergedLines.join('\n');
+}
+
+/**
+ * Checks if the CSV appears to have a double header structure
+ */
+function checkForDoubleHeader(lines: string[]): boolean {
+  const midpoint = Math.floor(lines.length / 2);
+  
+  if (midpoint >= lines.length) return false;
+
+  const secondHalfHeader = lines[midpoint];
+  
+  // Temperature column indicators
+  const tempIndicators = [
+    'Thermistor Temperature',
+    'Temperature Probe',
+    'Internal Temperature',
+    '°F',
+    '°C',
+    '&#x2103;',
+    '&#x2109;'
+  ];
+
+  return tempIndicators.some(indicator => secondHalfHeader.includes(indicator));
+}
+
+/**
+ * Checks which required columns are present in the headers
+ */
+function checkRequiredColumns(headers: string[]): {
+  hasLatLng: boolean;
+  hasInternalTemp: boolean;
+  hasProbeTemp: boolean;
+} {
+  const latColumns = ['Latitude', 'Lat', ' Lat'];
+  const lngColumns = ['Longitude', 'Lng', ' Lng'];
+  const internalTempColumns = [
+    'Internal Temperature (°F)',
+    'Internal Temperature (°C)',
+    'Internal Temperature-Internal Temperature (&#x2103;)',
+    'Internal Temperature-Internal Temperature (&#x2109;)'
+  ];
+  const probeTempColumns = [
+    'Thermistor Temperature (°F)',
+    ' Thermistor Temperature (°F)',
+    'Thermistor Temperature (°C)',
+    ' Thermistor Temperature (°C)',
+    'Thermistor Temp (°F)',
+    'Thermistor Temp (°C)',
+    'Temperature Probe-Temperature (&#x2103;)',
+    'Temperature Probe-Temperature (&#x2109;)',
+    'Temperature Probe-Temperature (°C)',
+    'Temperature Probe-Temperature (°F)',
+    'Probe Temperature (°F)',
+    'Probe Temperature (°C)',
+    'Probe Temp (°F)',
+    'Probe Temp (°C)',
+    'Temperature Probe (F)',
+    'Temperature Probe (C)',
+    'Temperature Probe(℉)'
+  ];
+
+  const hasLatitude = latColumns.some(col => headers.includes(col));
+  const hasLongitude = lngColumns.some(col => headers.includes(col));
+  const hasInternalTemp = internalTempColumns.some(col => headers.includes(col));
+  const hasProbeTemp = probeTempColumns.some(col => headers.includes(col));
+
+  return {
+    hasLatLng: hasLatitude && hasLongitude,
+    hasInternalTemp,
+    hasProbeTemp
+  };
+}
