@@ -28,21 +28,26 @@ function MapRefConnector({ setRef }: { setRef: (map: LeafletMap) => void }) {
 type OverlayType = 'picture' | 'sensor' | 'layers' | 'mapStyle' | null;
 type ViewMode = 'map' | 'storybook';
 
+// CARTO basemap key (free, from carto.com/basemaps/apikey)
+const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY ?? "";
+const cartoUrl = (style: string) =>
+  `https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`;
+
 // Map style options
 const mapStyles = {
   minimal: {
     name: "Minimal",
-    url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+    url: cartoUrl("light_nolabels"),
     attribution: "&copy; OpenStreetMap, &copy; CARTO"
   },
   clean: {
     name: "Clean",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    url: cartoUrl("light_all"),
     attribution: "&copy; OpenStreetMap, &copy; CARTO"
   },
   dark: {
     name: "Dark",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: cartoUrl("dark_all"),
     attribution: "&copy; OpenStreetMap, &copy; CARTO"
   },
   standard: {
